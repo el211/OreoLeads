@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OreoLeads.Application.Common.Interfaces;
@@ -7,6 +8,7 @@ namespace OreoLeads.Api.Controllers;
 
 [ApiController]
 [Route("api/leads/{leadId:guid}/analysis")]
+[Authorize]
 public class WebsiteAnalysisController : ControllerBase
 {
     private readonly IWebsiteAnalyzerService _analyzer;

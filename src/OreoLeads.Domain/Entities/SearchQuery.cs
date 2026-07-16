@@ -5,6 +5,7 @@ namespace OreoLeads.Domain.Entities;
 public class SearchQuery : BaseEntity
 {
     public string? UserId { get; set; }
+    public Guid? OrganizationId { get; set; }
     public string? Keywords { get; set; }
     public string? Region { get; set; }
     public string? Department { get; set; }

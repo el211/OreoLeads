@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.LeadNotes.DTOs;
@@ -10,6 +11,7 @@ namespace OreoLeads.Api.Controllers;
 
 [ApiController]
 [Route("api/leads/{leadId:guid}/notes")]
+[Authorize]
 public class LeadNotesController : ControllerBase
 {
     private readonly LeadNoteRepository _noteRepository;

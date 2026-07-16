@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell, Tag, Building2, Search, Mail, Bot, FileText, Settings } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Tag, Building2, Search, Mail, Bot, FileText, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -17,6 +18,8 @@ const settingsItems = [
 ]
 
 export function Sidebar() {
+  const { user, logout } = useAuth()
+
   return (
     <aside className="flex h-screen w-64 flex-col border-r bg-card">
       {/* Logo */}
@@ -74,8 +77,19 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t p-4">
-        <p className="text-xs text-muted-foreground">Oreo Studios © 2025</p>
+      <div className="border-t p-4 space-y-2">
+        {user && (
+          <div className="text-xs text-muted-foreground truncate">
+            {user.fullName || user.email}
+          </div>
+        )}
+        <button
+          onClick={logout}
+          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Se déconnecter
+        </button>
       </div>
     </aside>
   )

@@ -7,6 +7,7 @@ using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.WebsiteAnalysis.DTOs;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Infrastructure.Analysis;
+using OreoLeads.Infrastructure.Security;
 
 namespace OreoLeads.Infrastructure.Services;
 
@@ -30,6 +31,9 @@ public class WebsiteAnalyzerService : IWebsiteAnalyzerService
         Guid leadId, string url, CancellationToken ct = default)
     {
         url = NormalizeUrl(url);
+
+        // SSRF protection — validate URL before any outbound request
+        await SsrfGuard.ValidateAsync(url, ct);
 
         var analysis = new WebsiteAnalysis
         {

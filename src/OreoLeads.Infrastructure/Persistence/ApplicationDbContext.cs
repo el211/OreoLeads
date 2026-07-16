@@ -1,14 +1,22 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Domain.Entities;
+using OreoLeads.Infrastructure.Identity;
 
 namespace OreoLeads.Infrastructure.Persistence;
 
-public class ApplicationDbContext : DbContext, IApplicationDbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplicationDbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    private readonly TenantContext _tenant;
+
+    public ApplicationDbContext(
+        DbContextOptions<ApplicationDbContext> options,
+        TenantContext? tenant = null)
         : base(options)
     {
+        // Always non-null — a fresh TenantContext with null OrganizationId means "no filter"
+        _tenant = tenant ?? new TenantContext();
     }
 
     public DbSet<Lead> Leads => Set<Lead>();
@@ -24,10 +32,30 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<EmailDraftVersion> EmailDraftVersions => Set<EmailDraftVersion>();
     public DbSet<AiConfiguration> AiConfigurations => Set<AiConfiguration>();
     public DbSet<PromptTemplate> PromptTemplates => Set<PromptTemplate>();
+    public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+        // Multi-tenant query filters — evaluated per-request using TenantContext.
+        // When OrganizationId is null (no tenant set), all rows are visible (admin / migrations).
+        modelBuilder.Entity<Lead>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<GeneratedEmail>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<WebsiteAnalysis>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<FollowUp>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<SearchQuery>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AiConfiguration>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<PromptTemplate>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId || e.IsSystem);
     }
 }

@@ -6,6 +6,7 @@ namespace OreoLeads.Domain.Entities;
 public class GeneratedEmail : BaseEntity
 {
     public Guid LeadId { get; set; }
+    public Guid? OrganizationId { get; set; }
 
     // Content
     public string Subject { get; set; } = string.Empty;

@@ -1,10 +1,12 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Infrastructure.Ai;
 using OreoLeads.Infrastructure.Ai.Providers;
+using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
 using OreoLeads.Infrastructure.Persistence.Repositories;
 using OreoLeads.Infrastructure.Services;
@@ -19,14 +21,33 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // PostgreSQL via EF Core
-        services.AddDbContext<ApplicationDbContext>(options =>
+        // TenantContext — must be scoped so EF query filters get per-request values
+        services.AddScoped<TenantContext>();
+
+        // PostgreSQL via EF Core (inject TenantContext)
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
+        {
             options.UseNpgsql(
                 configuration.GetConnectionString("DefaultConnection"),
-                b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+                b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName));
+        });
 
         services.AddScoped<IApplicationDbContext>(provider =>
             provider.GetRequiredService<ApplicationDbContext>());
+
+        // ASP.NET Core Identity
+        services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+        {
+            options.Password.RequireDigit = true;
+            options.Password.RequiredLength = 8;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequireUppercase = false;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.User.RequireUniqueEmail = true;
+        })
+        .AddEntityFrameworkStores<ApplicationDbContext>()
+        .AddDefaultTokenProviders();
 
         // Redis (abortConnect=false = ne crash pas si Redis est indisponible)
         var redisConnectionString = configuration.GetConnectionString("Redis");
@@ -37,6 +58,9 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IConnectionMultiplexer>(
                 ConnectionMultiplexer.Connect(redisConfig));
         }
+
+        // HTTP context accessor (for CurrentUserService, AuditLogger)
+        services.AddHttpContextAccessor();
 
         // Repositories
         services.AddScoped<ILeadRepository, LeadRepository>();
@@ -88,6 +112,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<OpenAiProvider>());
         services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<OllamaProvider>());
         services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<GenericOpenAiProvider>());
+
+        // ── Identity / Auth ───────────────────────────────────────────────────
+        services.AddScoped<JwtService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IAuditLogger, AuditLogger>();
 
         // FluentValidation — charge les validators depuis l'assembly Application
         services.AddValidatorsFromAssembly(typeof(IApplicationDbContext).Assembly);

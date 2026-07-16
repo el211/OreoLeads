@@ -6,6 +6,7 @@ namespace OreoLeads.Domain.Entities;
 /// <summary>Modifiable prompt template. All prompts are stored here, never hardcoded.</summary>
 public class PromptTemplate : BaseEntity
 {
+    public Guid? OrganizationId { get; set; }
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Unique identifier used by the code (e.g. "email.system", "email.first_contact").</summary>

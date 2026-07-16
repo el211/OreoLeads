@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Search.DTOs;
@@ -6,6 +7,7 @@ namespace OreoLeads.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class SearchController : ControllerBase
 {
     private readonly ISearchService _searchService;

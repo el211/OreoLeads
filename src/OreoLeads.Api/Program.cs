@@ -1,9 +1,14 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Infrastructure.Extensions;
+using OreoLeads.Infrastructure.Identity;
+using OreoLeads.Infrastructure.Persistence;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -16,7 +21,21 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    // Serilog
+    // ── Startup config validation ─────────────────────────────────────────────
+    var jwtSettings = builder.Configuration.GetSection("Jwt");
+    var jwtSecret = jwtSettings["SecretKey"];
+    var isProduction = builder.Environment.IsProduction();
+
+    if (string.IsNullOrWhiteSpace(jwtSecret) || (isProduction && jwtSecret.Contains("CHANGE_ME")))
+        throw new InvalidOperationException(
+            "FATAL: JWT SecretKey is not configured or uses the default value. " +
+            "Set Jwt__SecretKey in environment variables.");
+
+    var aiEncKey = builder.Configuration["Ai:EncryptionKey"];
+    if (isProduction && (string.IsNullOrWhiteSpace(aiEncKey) || aiEncKey.Contains("CHANGE_ME")))
+        Log.Warning("Ai:EncryptionKey uses the default value — set a strong key in production.");
+
+    // ── Serilog ───────────────────────────────────────────────────────────────
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
@@ -24,14 +43,14 @@ try
         .WriteTo.Console()
         .WriteTo.File("logs/oreo-.log", rollingInterval: RollingInterval.Day));
 
-    // Infrastructure (EF Core, Redis)
+    // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
     builder.Services.AddInfrastructure(builder.Configuration);
 
-    // Controllers
+    // ── Controllers ───────────────────────────────────────────────────────────
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
 
-    // Swagger / OpenAPI (Swashbuckle 10.x + OpenAPI 2.x)
+    // ── Swagger / OpenAPI ─────────────────────────────────────────────────────
     builder.Services.AddSwaggerGen(options =>
     {
         options.SwaggerDoc("v1", new OpenApiInfo
@@ -59,10 +78,7 @@ try
         });
     });
 
-    // JWT Authentication
-    var jwtSettings = builder.Configuration.GetSection("Jwt");
-    var secretKey = jwtSettings["SecretKey"]!;
-
+    // ── JWT Authentication ────────────────────────────────────────────────────
     builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -78,13 +94,64 @@ try
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtSettings["Issuer"],
             ValidAudience = jwtSettings["Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ClockSkew = TimeSpan.FromSeconds(30),
         };
     });
 
     builder.Services.AddAuthorization();
 
-    // CORS
+    // ── Rate Limiting ─────────────────────────────────────────────────────────
+    builder.Services.AddRateLimiter(opts =>
+    {
+        opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        // Auth endpoints: strict — 10 req/min per IP
+        opts.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+
+        // Search: 30 req/min per user
+        opts.AddPolicy("search", context => RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+
+        // AI generation: 20 req/min per user
+        opts.AddPolicy("ai", context => RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+
+        // Website analysis: 10 req/min per user
+        opts.AddPolicy("analyze", context => RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+    });
+
+    // ── CORS ──────────────────────────────────────────────────────────────────
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowFrontend", policy =>
@@ -99,8 +166,25 @@ try
         });
     });
 
+    // ── Health Checks ─────────────────────────────────────────────────────────
+    builder.Services.AddHealthChecks()
+        .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy())
+        .AddCheck<OreoLeads.Api.HealthChecks.DatabaseHealthCheck>("database");
+
+    // ─────────────────────────────────────────────────────────────────────────
     var app = builder.Build();
 
+    // ── TenantContext middleware — wire OrganizationId into EF query filters ──
+    app.Use(async (context, next) =>
+    {
+        var tenantCtx = context.RequestServices.GetRequiredService<TenantContext>();
+        var currentUser = context.RequestServices.GetRequiredService<ICurrentUserService>();
+        if (currentUser.OrganizationId.HasValue)
+            tenantCtx.SetOrganization(currentUser.OrganizationId.Value);
+        await next();
+    });
+
+    app.UseMiddleware<OreoLeads.Api.Middleware.CorrelationIdMiddleware>();
     app.UseSerilogRequestLogging();
 
     if (app.Environment.IsDevelopment())
@@ -113,20 +197,40 @@ try
         });
     }
 
+    app.UseRateLimiter();
     app.UseCors("AllowFrontend");
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
 
-    // Health check endpoint
-    app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow }))
-        .WithTags("Health")
-        .AllowAnonymous();
+    // ── Health check endpoints ────────────────────────────────────────────────
+    app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = check => check.Name == "self",
+    }).AllowAnonymous();
 
-    // Seed default AI prompt templates
+    app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = check => check.Name == "database",
+    }).AllowAnonymous();
+
+    app.MapHealthChecks("/health").AllowAnonymous();
+
+    // ── Startup tasks ─────────────────────────────────────────────────────────
     using (var scope = app.Services.CreateScope())
     {
-        var aiConfig = scope.ServiceProvider.GetRequiredService<IAiConfigurationService>();
+        var sp = scope.ServiceProvider;
+
+        // Seed Identity roles
+        var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
+        foreach (var role in new[] { "Admin", "Manager", "Sales" })
+        {
+            if (!await roleManager.RoleExistsAsync(role))
+                await roleManager.CreateAsync(new IdentityRole(role));
+        }
+
+        // Seed default AI prompt templates
+        var aiConfig = sp.GetRequiredService<IAiConfigurationService>();
         await aiConfig.SeedDefaultPromptsAsync();
     }
 

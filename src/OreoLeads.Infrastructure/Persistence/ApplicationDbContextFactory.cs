@@ -7,6 +7,7 @@ namespace OreoLeads.Infrastructure.Persistence;
 /// <summary>
 /// Design-time factory for EF Core migrations.
 /// Allows running migrations without launching the full application.
+/// TenantContext is null at design time — query filters are inactive.
 /// </summary>
 public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<ApplicationDbContext>
 {
@@ -23,6 +24,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
             configuration.GetConnectionString("DefaultConnection"),
             b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName));
 
-        return new ApplicationDbContext(optionsBuilder.Options);
+        // TenantContext is null at design time (no query filters during migrations)
+        return new ApplicationDbContext(optionsBuilder.Options, tenant: null);
     }
 }

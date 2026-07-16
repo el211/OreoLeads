@@ -28,6 +28,7 @@ public class Lead : BaseEntity
     public LeadPriority Priority { get; set; } = LeadPriority.Medium;
     public int Score { get; set; } = 0;
     public Guid? AssignedUserId { get; set; }
+    public Guid? OrganizationId { get; set; }
 
     // Navigation
     public ICollection<LeadActivity> Activities { get; set; } = new List<LeadActivity>();

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using OreoLeads.Application.Common.Interfaces;
@@ -15,6 +16,8 @@ public class SearchService : ISearchService
     private readonly ISearchRepository _searchRepository;
     private readonly ApplicationDbContext _context;
     private readonly ILogger<SearchService> _logger;
+
+    private const int PageSize = 20;
 
     public SearchService(
         IEnumerable<ILeadSource> sources,
@@ -33,13 +36,58 @@ public class SearchService : ISearchService
     {
         var sw = Stopwatch.StartNew();
 
-        var source = _sources.First(); // architecture multi-sources : le premier par ordre de priorité
-        var (results, totalFound) = await source.SearchAsync(request, 1, ct);
+        var source = _sources.First();
+        var allResults = new List<CompanySearchResultDto>();
+        var totalFound = 0;
+        var page = 1;
 
-        // Détection des doublons dans la BDD existante
-        foreach (var result in results)
+        // Paginate until we hit MaxResults or the source runs out
+        while (allResults.Count < request.MaxResults)
         {
-            var duplicate = await FindExistingLeadAsync(result, ct);
+            var (results, total) = await source.SearchAsync(request, page, ct);
+            totalFound = total;
+
+            if (results.Count == 0) break;
+
+            allResults.AddRange(results);
+            if (allResults.Count >= request.MaxResults || results.Count < PageSize) break;
+
+            page++;
+        }
+
+        // Trim to MaxResults
+        if (allResults.Count > request.MaxResults)
+            allResults = allResults[..request.MaxResults];
+
+        // Duplicate detection — bulk load existing SIREN/SIRET
+        var sirens = allResults
+            .Where(r => !string.IsNullOrWhiteSpace(r.Siren))
+            .Select(r => r.Siren!)
+            .Distinct()
+            .ToList();
+        var sirets = allResults
+            .Where(r => !string.IsNullOrWhiteSpace(r.Siret))
+            .Select(r => r.Siret!)
+            .Distinct()
+            .ToList();
+
+        var existingBySiren = await _context.Leads
+            .AsNoTracking()
+            .Where(l => sirens.Contains(l.Siren!))
+            .ToDictionaryAsync(l => l.Siren!, ct);
+        var existingBySiret = await _context.Leads
+            .AsNoTracking()
+            .Where(l => sirets.Contains(l.Siret!))
+            .ToDictionaryAsync(l => l.Siret!, ct);
+
+        foreach (var result in allResults)
+        {
+            Lead? duplicate = null;
+            if (!string.IsNullOrWhiteSpace(result.Siren))
+                existingBySiren.TryGetValue(result.Siren, out duplicate);
+            if (duplicate == null && !string.IsNullOrWhiteSpace(result.Siret))
+                existingBySiret.TryGetValue(result.Siret, out duplicate);
+
             if (duplicate != null)
             {
                 result.AlreadyExists = true;
@@ -72,7 +120,7 @@ public class SearchService : ISearchService
         {
             SearchId = saved.Id,
             TotalFound = totalFound,
-            Results = results,
+            Results = allResults,
             Provider = source.ProviderName,
             DurationMs = (int)sw.ElapsedMilliseconds,
         };
@@ -83,11 +131,50 @@ public class SearchService : ISearchService
     {
         var result = new SearchImportResultDto();
 
+        // Bulk preload — avoid N+1 per-company DB lookups
+        var sirensToCheck = request.Companies
+            .Where(c => !string.IsNullOrWhiteSpace(c.Siren))
+            .Select(c => c.Siren!)
+            .Distinct()
+            .ToList();
+        var siretsToCheck = request.Companies
+            .Where(c => !string.IsNullOrWhiteSpace(c.Siret))
+            .Select(c => c.Siret!)
+            .Distinct()
+            .ToList();
+
+        var existingBySiren = await _context.Leads
+            .Where(l => sirensToCheck.Contains(l.Siren!))
+            .ToDictionaryAsync(l => l.Siren!, ct);
+        var existingBySiret = await _context.Leads
+            .Where(l => siretsToCheck.Contains(l.Siret!))
+            .ToDictionaryAsync(l => l.Siret!, ct);
+
+        // In-memory duplicate tracker for the current batch (prevents double-add within same import)
+        var sirensSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var siretsSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var company in request.Companies)
         {
             try
             {
-                var existing = await FindExistingLeadAsync(company, ct);
+                // Find existing lead using preloaded dictionaries
+                Lead? existing = null;
+                if (!string.IsNullOrWhiteSpace(company.Siren))
+                    existingBySiren.TryGetValue(company.Siren, out existing);
+                if (existing == null && !string.IsNullOrWhiteSpace(company.Siret))
+                    existingBySiret.TryGetValue(company.Siret, out existing);
+
+                // Check in-batch duplicates
+                var inBatchDuplicate =
+                    (!string.IsNullOrWhiteSpace(company.Siren) && !sirensSeen.Add(company.Siren)) ||
+                    (!string.IsNullOrWhiteSpace(company.Siret) && !siretsSeen.Add(company.Siret));
+
+                if (inBatchDuplicate && existing == null)
+                {
+                    result.Duplicates++;
+                    continue;
+                }
 
                 if (existing != null)
                 {
@@ -113,7 +200,7 @@ public class SearchService : ISearchService
                         Address = company.Address,
                         PostalCode = company.PostalCode,
                         City = company.City != null
-                            ? System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(company.City.ToLower())
+                            ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(company.City.ToLower())
                             : null,
                         Department = company.Department,
                         Region = company.Region,
@@ -131,6 +218,12 @@ public class SearchService : ISearchService
                     _context.Leads.Add(lead);
                     result.NewLeadIds.Add(lead.Id);
                     result.NewLeads++;
+
+                    // Track in-memory to avoid duplicates within the same batch
+                    if (!string.IsNullOrWhiteSpace(lead.Siren))
+                        existingBySiren[lead.Siren] = lead;
+                    if (!string.IsNullOrWhiteSpace(lead.Siret))
+                        existingBySiret[lead.Siret] = lead;
                 }
             }
             catch (Exception ex)
@@ -159,30 +252,15 @@ public class SearchService : ISearchService
         return result;
     }
 
-    private async Task<Lead?> FindExistingLeadAsync(CompanySearchResultDto company, CancellationToken ct)
+    private static Lead? FindInDictionaries(
+        CompanySearchResultDto company,
+        Dictionary<string, Lead> bySiren,
+        Dictionary<string, Lead> bySiret)
     {
-        if (!string.IsNullOrWhiteSpace(company.Siren))
-        {
-            var bySiren = await _context.Leads
-                .FirstOrDefaultAsync(l => l.Siren == company.Siren, ct);
-            if (bySiren != null) return bySiren;
-        }
-
-        if (!string.IsNullOrWhiteSpace(company.Siret))
-        {
-            var bySiret = await _context.Leads
-                .FirstOrDefaultAsync(l => l.Siret == company.Siret, ct);
-            if (bySiret != null) return bySiret;
-        }
-
-        // Fallback : correspondance nom + code postal
-        if (!string.IsNullOrWhiteSpace(company.CompanyName) && !string.IsNullOrWhiteSpace(company.PostalCode))
-        {
-            return await _context.Leads.FirstOrDefaultAsync(l =>
-                l.CompanyName.ToLower() == company.CompanyName.ToLower() &&
-                l.PostalCode == company.PostalCode, ct);
-        }
-
+        if (!string.IsNullOrWhiteSpace(company.Siren) && bySiren.TryGetValue(company.Siren, out var s))
+            return s;
+        if (!string.IsNullOrWhiteSpace(company.Siret) && bySiret.TryGetValue(company.Siret, out var t))
+            return t;
         return null;
     }
 

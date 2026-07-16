@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Tags.DTOs;
@@ -6,6 +7,7 @@ using OreoLeads.Domain.Entities;
 namespace OreoLeads.Api.Controllers;
 
 [ApiController]
+[Authorize]
 public class TagsController : ControllerBase
 {
     private readonly ITagRepository _tagRepository;

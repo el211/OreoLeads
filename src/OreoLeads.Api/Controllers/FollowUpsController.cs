@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.FollowUps.DTOs;
@@ -7,6 +8,7 @@ using OreoLeads.Domain.Enums;
 namespace OreoLeads.Api.Controllers;
 
 [ApiController]
+[Authorize]
 public class FollowUpsController : ControllerBase
 {
     private readonly IFollowUpRepository _followUpRepository;

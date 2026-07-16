@@ -5,6 +5,7 @@ namespace OreoLeads.Domain.Entities;
 public class WebsiteAnalysis : BaseEntity
 {
     public Guid LeadId { get; set; }
+    public Guid? OrganizationId { get; set; }
     public string Url { get; set; } = string.Empty;
     public DateTime LastAnalysis { get; set; } = DateTime.UtcNow;
 

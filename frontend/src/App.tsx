@@ -14,12 +14,20 @@ import { AiSettingsPage } from '@/pages/AiSettingsPage'
 import { EmailDraftsPage } from '@/pages/EmailDraftsPage'
 import { EmailEditorPage } from '@/pages/EmailEditorPage'
 import { PromptTemplatesPage } from '@/pages/PromptTemplatesPage'
+import { AuthProvider } from '@/context/AuthContext'
+import PrivateRoute from '@/components/PrivateRoute'
+import LoginPage from '@/pages/LoginPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,
-      retry: 1,
+      retry: (failureCount, error: unknown) => {
+        // Don't retry on 401/403
+        const status = (error as { response?: { status?: number } })?.response?.status
+        if (status === 401 || status === 403) return false
+        return failureCount < 1
+      },
     },
   },
 })
@@ -27,25 +35,35 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="leads" element={<LeadsPage />} />
-            <Route path="leads/new" element={<CreateLeadPage />} />
-            <Route path="leads/:id" element={<LeadDetailPage />} />
-            <Route path="leads/:id/edit" element={<EditLeadPage />} />
-            <Route path="leads/:id/analysis" element={<LeadAnalysisPage />} />
-            <Route path="followups" element={<FollowUpsPage />} />
-            <Route path="search" element={<SearchPage />} />
-            <Route path="search/history" element={<SearchHistoryPage />} />
-            <Route path="emails" element={<EmailDraftsPage />} />
-            <Route path="emails/:id" element={<EmailEditorPage />} />
-            <Route path="settings/ai" element={<AiSettingsPage />} />
-            <Route path="settings/prompts" element={<PromptTemplatesPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<LoginPage />} />
+
+            {/* Protected */}
+            <Route element={
+              <PrivateRoute>
+                <AppLayout />
+              </PrivateRoute>
+            }>
+              <Route index element={<DashboardPage />} />
+              <Route path="leads" element={<LeadsPage />} />
+              <Route path="leads/new" element={<CreateLeadPage />} />
+              <Route path="leads/:id" element={<LeadDetailPage />} />
+              <Route path="leads/:id/edit" element={<EditLeadPage />} />
+              <Route path="leads/:id/analysis" element={<LeadAnalysisPage />} />
+              <Route path="followups" element={<FollowUpsPage />} />
+              <Route path="search" element={<SearchPage />} />
+              <Route path="search/history" element={<SearchHistoryPage />} />
+              <Route path="emails" element={<EmailDraftsPage />} />
+              <Route path="emails/:id" element={<EmailEditorPage />} />
+              <Route path="settings/ai" element={<AiSettingsPage />} />
+              <Route path="settings/prompts" element={<PromptTemplatesPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }

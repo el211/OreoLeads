@@ -6,6 +6,7 @@ namespace OreoLeads.Domain.Entities;
 /// <summary>Single-row table: stores the active AI provider configuration.</summary>
 public class AiConfiguration : BaseEntity
 {
+    public Guid? OrganizationId { get; set; }
     public AiProviderType ProviderType { get; set; } = AiProviderType.Claude;
     public string? EncryptedApiKey { get; set; }
     public string? Model { get; set; }

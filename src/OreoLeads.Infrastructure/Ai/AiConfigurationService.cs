@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Ai.DTOs;
 using OreoLeads.Domain.Entities;
-using OreoLeads.Domain.Enums;
 using OreoLeads.Infrastructure.Persistence;
 using OreoLeads.Infrastructure.Persistence.Repositories;
 
@@ -15,17 +14,15 @@ internal sealed class AiConfigurationService : IAiConfigurationService
 {
     private readonly ApplicationDbContext _db;
     private readonly byte[] _encKey;
-    private readonly byte[] _encIv;
 
     public AiConfigurationService(ApplicationDbContext db, IConfiguration configuration)
     {
         _db = db;
 
-        // Derive a 256-bit key and 128-bit IV from the configured secret
+        // Derive a 256-bit key from the configured secret
         var secret = configuration["Ai:EncryptionKey"] ?? "OreoLeadsDefaultSecretKey_32chars!";
         using var sha = SHA256.Create();
         _encKey = sha.ComputeHash(Encoding.UTF8.GetBytes(secret));  // 32 bytes
-        _encIv  = _encKey[..16];                                    // 16 bytes
     }
 
     public async Task<AiConfiguration?> GetCurrentAsync()
@@ -57,28 +54,45 @@ internal sealed class AiConfigurationService : IAiConfigurationService
         return existing;
     }
 
+    /// <summary>
+    /// Encrypts using AES-256-GCM with a random 12-byte nonce.
+    /// Output format: Base64(nonce[12] + tag[16] + ciphertext)
+    /// </summary>
     public string EncryptApiKey(string plainKey)
     {
-        using var aes = Aes.Create();
-        aes.Key = _encKey;
-        aes.IV  = _encIv;
+        var plainBytes = Encoding.UTF8.GetBytes(plainKey);
+        var nonce = new byte[AesGcm.NonceByteSizes.MaxSize];      // 12 bytes
+        var tag = new byte[AesGcm.TagByteSizes.MaxSize];           // 16 bytes
+        var ciphertext = new byte[plainBytes.Length];
 
-        using var encryptor = aes.CreateEncryptor();
-        var bytes = Encoding.UTF8.GetBytes(plainKey);
-        var encrypted = encryptor.TransformFinalBlock(bytes, 0, bytes.Length);
-        return Convert.ToBase64String(encrypted);
+        RandomNumberGenerator.Fill(nonce);
+
+        using var aes = new AesGcm(_encKey, AesGcm.TagByteSizes.MaxSize);
+        aes.Encrypt(nonce, plainBytes, ciphertext, tag);
+
+        // Concat: nonce(12) + tag(16) + ciphertext
+        var combined = new byte[nonce.Length + tag.Length + ciphertext.Length];
+        Buffer.BlockCopy(nonce, 0, combined, 0, nonce.Length);
+        Buffer.BlockCopy(tag, 0, combined, nonce.Length, tag.Length);
+        Buffer.BlockCopy(ciphertext, 0, combined, nonce.Length + tag.Length, ciphertext.Length);
+
+        return Convert.ToBase64String(combined);
     }
 
+    /// <summary>Decrypts AES-256-GCM ciphertext produced by EncryptApiKey.</summary>
     public string DecryptApiKey(string encryptedKey)
     {
-        using var aes = Aes.Create();
-        aes.Key = _encKey;
-        aes.IV  = _encIv;
+        var combined = Convert.FromBase64String(encryptedKey);
 
-        using var decryptor = aes.CreateDecryptor();
-        var bytes = Convert.FromBase64String(encryptedKey);
-        var decrypted = decryptor.TransformFinalBlock(bytes, 0, bytes.Length);
-        return Encoding.UTF8.GetString(decrypted);
+        var nonce = combined[..12];
+        var tag = combined[12..28];
+        var ciphertext = combined[28..];
+        var plaintext = new byte[ciphertext.Length];
+
+        using var aes = new AesGcm(_encKey, AesGcm.TagByteSizes.MaxSize);
+        aes.Decrypt(nonce, ciphertext, tag, plaintext);
+
+        return Encoding.UTF8.GetString(plaintext);
     }
 
     public string? GetDecryptedApiKey(AiConfiguration config)

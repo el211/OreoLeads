@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OreoLeads.Application.Common.Interfaces;
 
@@ -5,6 +6,7 @@ namespace OreoLeads.Api.Controllers;
 
 [ApiController]
 [Route("api/leads/{leadId:guid}/activities")]
+[Authorize]
 public class LeadActivitiesController : ControllerBase
 {
     private readonly ILeadActivityRepository _repository;

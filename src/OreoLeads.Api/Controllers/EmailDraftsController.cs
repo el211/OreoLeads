@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Ai.DTOs;
@@ -7,6 +8,7 @@ namespace OreoLeads.Api.Controllers;
 
 [ApiController]
 [Route("api/emails")]
+[Authorize]
 public class EmailDraftsController : ControllerBase
 {
     private readonly IEmailDraftRepository _repo;

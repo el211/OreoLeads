@@ -1,0 +1,110 @@
+# Production docker-compose — Coolify compatible
+# Internal services are NOT exposed to the host. Only the API and frontend are exposed.
+# All secrets must be provided as environment variables (never in this file).
+# Usage: docker compose -f docker-compose.prod.yml up -d
+
+services:
+  # ─── Backend ─────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: src/OreoLeads.Api/Dockerfile
+    container_name: oreo-backend
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=oreo_leads;Username=oreo;Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__Redis=redis:6379,abortConnect=false
+      - Jwt__SecretKey=${JWT_SECRET}
+      - Jwt__Issuer=${JWT_ISSUER:-OreoLeads}
+      - Jwt__Audience=${JWT_AUDIENCE:-OreoLeads}
+      - Jwt__ExpiryMinutes=${JWT_EXPIRY_MINUTES:-60}
+      - Jwt__RefreshTokenDays=${JWT_REFRESH_DAYS:-7}
+      - Ai__EncryptionKey=${AI_ENCRYPTION_KEY}
+      - Cors__AllowedOrigins__0=${CORS_ORIGIN_0:-http://localhost:3000}
+    # No host port mapping — traffic goes through the reverse proxy (Coolify/Traefik/Nginx)
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - oreo-internal
+      - oreo-public
+
+  # ─── Frontend ─────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: oreo-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - oreo-public
+
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: oreo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: oreo_leads
+      POSTGRES_USER: oreo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # No exposed ports — only accessible within oreo-internal network
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oreo -d oreo_leads"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oreo-internal
+
+  # ─── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: oreo-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    # No exposed ports — only accessible within oreo-internal network
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oreo-internal
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  oreo-internal:
+    driver: bridge
+    internal: true   # completely isolated — no external access
+  oreo-public:
+    driver: bridge   # connects to Coolify/Traefik reverse proxy

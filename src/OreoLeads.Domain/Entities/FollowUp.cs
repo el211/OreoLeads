@@ -6,6 +6,7 @@ namespace OreoLeads.Domain.Entities;
 public class FollowUp : BaseEntity
 {
     public Guid LeadId { get; set; }
+    public Guid? OrganizationId { get; set; }
     public DateTime ScheduledAt { get; set; }
     public Guid? UserId { get; set; }
     public string UserName { get; set; } = string.Empty;
