@@ -7,6 +7,8 @@ import { LeadDetailPage } from '@/pages/LeadDetailPage'
 import { CreateLeadPage } from '@/pages/CreateLeadPage'
 import { EditLeadPage } from '@/pages/EditLeadPage'
 import { FollowUpsPage } from '@/pages/FollowUpsPage'
+import { SearchPage } from '@/pages/SearchPage'
+import { SearchHistoryPage } from '@/pages/SearchHistoryPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,6 +31,8 @@ function App() {
             <Route path="leads/:id" element={<LeadDetailPage />} />
             <Route path="leads/:id/edit" element={<EditLeadPage />} />
             <Route path="followups" element={<FollowUpsPage />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="search/history" element={<SearchHistoryPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -6,6 +6,7 @@ using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Infrastructure.Persistence;
 using OreoLeads.Infrastructure.Persistence.Repositories;
 using OreoLeads.Infrastructure.Services;
+using OreoLeads.Infrastructure.Sources;
 using StackExchange.Redis;
 
 namespace OreoLeads.Infrastructure.Extensions;
@@ -45,6 +46,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICsvImportService, CsvImportService>();
         services.AddScoped<IExcelExportService, ExcelExportService>();
         services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<ISearchService, SearchService>();
+
+        // Search — fournisseurs de données (ILeadSource)
+        services.AddHttpClient<OpenDataGouvSource>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent", "OreoLeads/1.0");
+        });
+        services.AddScoped<ILeadSource, OpenDataGouvSource>();
+
+        // Search repository
+        services.AddScoped<ISearchRepository, SearchRepository>();
 
         // Ajouter aussi un repository pour les notes (géré directement via context)
         services.AddScoped<LeadNoteRepository>();

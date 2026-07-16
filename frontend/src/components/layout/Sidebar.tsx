@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell, Tag, Building2 } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Tag, Building2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/leads', label: 'Prospects', icon: Users },
+  { to: '/search', label: 'Recherche', icon: Search },
   { to: '/followups', label: 'Relances', icon: Bell },
   { to: '/tags', label: 'Tags', icon: Tag },
 ]

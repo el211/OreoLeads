@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<WebsiteAnalysis> WebsiteAnalyses => Set<WebsiteAnalysis>();
     public DbSet<GeneratedEmail> GeneratedEmails => Set<GeneratedEmail>();
     public DbSet<CompanyContact> CompanyContacts => Set<CompanyContact>();
+    public DbSet<SearchQuery> SearchQueries => Set<SearchQuery>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

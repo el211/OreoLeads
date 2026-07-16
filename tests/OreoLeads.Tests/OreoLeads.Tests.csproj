@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\OreoLeads.Application\OreoLeads.Application.csproj" />
     <ProjectReference Include="..\..\src\OreoLeads.Domain\OreoLeads.Domain.csproj" />
+    <ProjectReference Include="..\..\src\OreoLeads.Infrastructure\OreoLeads.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
