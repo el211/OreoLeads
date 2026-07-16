@@ -1,0 +1,32 @@
+# .NET
+bin/
+obj/
+/packages/
+*.user
+*.suo
+.vs/
+riderModule.iml
+/_ReSharper.Caches/
+*.DotSettings.user
+logs/
+
+# EF Migrations snapshots (keep migrations, ignore snapshots of IDE)
+# (les fichiers de migration sont committés)
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Docker
+.dockerignore

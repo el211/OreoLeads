@@ -1,0 +1,122 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import api from '@/lib/api'
+import type { CreateLeadDto, Lead, LeadFilter, LeadNote, LeadSummary, PagedResult } from '@/types/lead'
+
+export function useLeads(filter: LeadFilter) {
+  return useQuery<PagedResult<LeadSummary>>({
+    queryKey: ['leads', filter],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (filter.search) params.set('search', filter.search)
+      if (filter.city) params.set('city', filter.city)
+      if (filter.industry) params.set('industry', filter.industry)
+      if (filter.status) params.set('status', filter.status)
+      if (filter.priority) params.set('priority', filter.priority)
+      if (filter.hasWebsite !== undefined) params.set('hasWebsite', String(filter.hasWebsite))
+      if (filter.hasEmail !== undefined) params.set('hasEmail', String(filter.hasEmail))
+      if (filter.sortBy) params.set('sortBy', filter.sortBy)
+      if (filter.sortDesc) params.set('sortDesc', 'true')
+      params.set('page', String(filter.page))
+      params.set('pageSize', String(filter.pageSize))
+      const { data } = await api.get<PagedResult<LeadSummary>>(`/leads?${params}`)
+      return data
+    },
+  })
+}
+
+export function useLead(id: string) {
+  return useQuery<Lead>({
+    queryKey: ['lead', id],
+    queryFn: async () => {
+      const { data } = await api.get<Lead>(`/leads/${id}`)
+      return data
+    },
+    enabled: !!id,
+  })
+}
+
+export function useLeadActivities(leadId: string) {
+  return useQuery({
+    queryKey: ['lead-activities', leadId],
+    queryFn: async () => {
+      const { data } = await api.get(`/leads/${leadId}/activities`)
+      return data
+    },
+    enabled: !!leadId,
+  })
+}
+
+export function useLeadNotes(leadId: string) {
+  return useQuery<LeadNote[]>({
+    queryKey: ['lead-notes', leadId],
+    queryFn: async () => {
+      const { data } = await api.get<LeadNote[]>(`/leads/${leadId}/notes`)
+      return data
+    },
+    enabled: !!leadId,
+  })
+}
+
+export function useCreateLead() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (dto: CreateLeadDto) => {
+      const { data } = await api.post<Lead>('/leads', dto)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+    },
+  })
+}
+
+export function useUpdateLead(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (dto: CreateLeadDto) => {
+      await api.put(`/leads/${id}`, dto)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      queryClient.invalidateQueries({ queryKey: ['lead', id] })
+    },
+  })
+}
+
+export function useDeleteLead() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/leads/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+    },
+  })
+}
+
+export function useCreateNote(leadId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (dto: { title: string; content: string; authorName: string }) => {
+      const { data } = await api.post(`/leads/${leadId}/notes`, dto)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lead-notes', leadId] })
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] })
+    },
+  })
+}
+
+export function useDeleteNote(leadId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (noteId: string) => {
+      await api.delete(`/leads/${leadId}/notes/${noteId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lead-notes', leadId] })
+    },
+  })
+}
