@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Infrastructure.Extensions;
 using Serilog;
 
@@ -121,6 +122,13 @@ try
     app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Timestamp = DateTime.UtcNow }))
         .WithTags("Health")
         .AllowAnonymous();
+
+    // Seed default AI prompt templates
+    using (var scope = app.Services.CreateScope())
+    {
+        var aiConfig = scope.ServiceProvider.GetRequiredService<IAiConfigurationService>();
+        await aiConfig.SeedDefaultPromptsAsync();
+    }
 
     await app.RunAsync();
 }

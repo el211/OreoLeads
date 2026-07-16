@@ -10,6 +10,10 @@ import { FollowUpsPage } from '@/pages/FollowUpsPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { SearchHistoryPage } from '@/pages/SearchHistoryPage'
 import { LeadAnalysisPage } from '@/pages/LeadAnalysisPage'
+import { AiSettingsPage } from '@/pages/AiSettingsPage'
+import { EmailDraftsPage } from '@/pages/EmailDraftsPage'
+import { EmailEditorPage } from '@/pages/EmailEditorPage'
+import { PromptTemplatesPage } from '@/pages/PromptTemplatesPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +39,10 @@ function App() {
             <Route path="followups" element={<FollowUpsPage />} />
             <Route path="search" element={<SearchPage />} />
             <Route path="search/history" element={<SearchHistoryPage />} />
+            <Route path="emails" element={<EmailDraftsPage />} />
+            <Route path="emails/:id" element={<EmailEditorPage />} />
+            <Route path="settings/ai" element={<AiSettingsPage />} />
+            <Route path="settings/prompts" element={<PromptTemplatesPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

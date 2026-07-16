@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using OreoLeads.Application.Common.Interfaces;
+using OreoLeads.Application.Features.Ai.DTOs;
 using OreoLeads.Application.Features.Leads.DTOs;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Domain.Enums;
@@ -241,6 +242,35 @@ public class LeadsController : ControllerBase
         return File(bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             $"prospects_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx");
+    }
+
+    /// <summary>Génère un brouillon d'email IA pour ce prospect.</summary>
+    [HttpPost("{id:guid}/generate-email")]
+    public async Task<IActionResult> GenerateEmail(
+        Guid id,
+        [FromBody] GenerateEmailRequestDto request,
+        [FromServices] IEmailGeneratorService generator,
+        [FromServices] ILeadRepository leadRepository,
+        CancellationToken ct)
+    {
+        var lead = await leadRepository.GetByIdAsync(id);
+        if (lead is null) return NotFound();
+
+        var draft = await generator.GenerateAsync(id, request, ct);
+        return Ok(new
+        {
+            draft.Id,
+            draft.Subject,
+            draft.Body,
+            draft.Summary,
+            draft.CallToAction,
+            Status      = draft.Status.ToString(),
+            StatusLabel = "Généré",
+            draft.ProviderUsed,
+            draft.ModelUsed,
+            draft.TotalTokens,
+            draft.GenerationMs
+        });
     }
 
     private static string GetStatusLabel(LeadStatus s) => s switch

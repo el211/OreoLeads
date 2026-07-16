@@ -2,10 +2,9 @@ namespace OreoLeads.Domain.Enums;
 
 public enum EmailStatus
 {
-    Draft,
-    Ready,
-    Sent,
-    Opened,
-    Replied,
-    Bounced
+    Generated,
+    Edited,
+    Approved,
+    Rejected,
+    Sent
 }

@@ -21,6 +21,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<GeneratedEmail> GeneratedEmails => Set<GeneratedEmail>();
     public DbSet<CompanyContact> CompanyContacts => Set<CompanyContact>();
     public DbSet<SearchQuery> SearchQueries => Set<SearchQuery>();
+    public DbSet<EmailDraftVersion> EmailDraftVersions => Set<EmailDraftVersion>();
+    public DbSet<AiConfiguration> AiConfigurations => Set<AiConfiguration>();
+    public DbSet<PromptTemplate> PromptTemplates => Set<PromptTemplate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

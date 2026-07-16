@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OreoLeads.Application.Common.Interfaces;
+using OreoLeads.Infrastructure.Ai;
+using OreoLeads.Infrastructure.Ai.Providers;
 using OreoLeads.Infrastructure.Persistence;
 using OreoLeads.Infrastructure.Persistence.Repositories;
 using OreoLeads.Infrastructure.Services;
@@ -41,6 +43,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ILeadActivityRepository, LeadActivityRepository>();
         services.AddScoped<IFollowUpRepository, FollowUpRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
+        services.AddScoped<ISearchRepository, SearchRepository>();
+        services.AddScoped<IEmailDraftRepository, EmailDraftRepository>();
+        services.AddScoped<IPromptTemplateRepository, PromptTemplateRepository>();
 
         // Services
         services.AddScoped<ICsvImportService, CsvImportService>();
@@ -48,6 +53,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<IWebsiteAnalyzerService, WebsiteAnalyzerService>();
+
+        // Also expose LeadNoteRepository directly
+        services.AddScoped<LeadNoteRepository>();
 
         // Search — fournisseurs de données (ILeadSource)
         services.AddHttpClient<OpenDataGouvSource>(client =>
@@ -57,11 +65,29 @@ public static class ServiceCollectionExtensions
         });
         services.AddScoped<ILeadSource, OpenDataGouvSource>();
 
-        // Search repository
-        services.AddScoped<ISearchRepository, SearchRepository>();
+        // ── AI ────────────────────────────────────────────────────────────────
+        services.AddScoped<IAiConfigurationService, AiConfigurationService>();
+        services.AddScoped<IPromptBuilder, PromptBuilder>();
+        services.AddScoped<IEmailGeneratorService, EmailGeneratorService>();
 
-        // Ajouter aussi un repository pour les notes (géré directement via context)
-        services.AddScoped<LeadNoteRepository>();
+        // AI Providers — each has its own typed HttpClient + is exposed as IAiProvider
+        services.AddHttpClient<ClaudeAiProvider>(c => c.Timeout = TimeSpan.FromSeconds(60));
+        services.AddScoped<ClaudeAiProvider>();
+
+        services.AddHttpClient<OpenAiProvider>(c => c.Timeout = TimeSpan.FromSeconds(60));
+        services.AddScoped<OpenAiProvider>();
+
+        services.AddHttpClient<OllamaProvider>(c => c.Timeout = TimeSpan.FromSeconds(120));
+        services.AddScoped<OllamaProvider>();
+
+        services.AddHttpClient<GenericOpenAiProvider>(c => c.Timeout = TimeSpan.FromSeconds(60));
+        services.AddScoped<GenericOpenAiProvider>();
+
+        // Expose all providers as IEnumerable<IAiProvider>
+        services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<ClaudeAiProvider>());
+        services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<OpenAiProvider>());
+        services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<OllamaProvider>());
+        services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<GenericOpenAiProvider>());
 
         // FluentValidation — charge les validators depuis l'assembly Application
         services.AddValidatorsFromAssembly(typeof(IApplicationDbContext).Assembly);

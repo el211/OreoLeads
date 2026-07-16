@@ -4,10 +4,12 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   ArrowLeft, Edit, Trash2, Mail, MapPin,
-  Building2, Clock, Plus, X, Globe,
+  Building2, Clock, Plus, X, Globe, Bot, Loader2,
 } from 'lucide-react'
 import { useLead, useLeadActivities, useLeadNotes, useDeleteLead, useDeleteNote, useCreateNote } from '@/hooks/useLeads'
 import { useLeadFollowUps, useCreateFollowUp } from '@/hooks/useFollowUps'
+import { useGenerateEmail } from '@/hooks/useEmails'
+import type { EmailStyle, EmailLength, EmailType } from '@/types/emails'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -44,10 +46,20 @@ export function LeadDetailPage() {
   const createNote = useCreateNote(id!)
   const createFollowUp = useCreateFollowUp(id!)
 
+  const generateEmail = useGenerateEmail(id!)
+
   const [newNote, setNewNote] = useState({ title: '', content: '', authorName: 'Utilisateur' })
   const [newFollowUp, setNewFollowUp] = useState({ scheduledAt: '', comment: '', userName: 'Utilisateur', priority: 'Medium' as const })
   const [showNoteForm, setShowNoteForm] = useState(false)
   const [showFollowUpForm, setShowFollowUpForm] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailReq, setEmailReq] = useState({
+    style: 'Professional' as EmailStyle,
+    length: 'Normal' as EmailLength,
+    type: 'FirstContact' as EmailType,
+    customInstructions: '',
+  })
+  const [generatedId, setGeneratedId] = useState<string | null>(null)
 
   if (isLoading) return <div className="text-muted-foreground">Chargement...</div>
   if (!lead) return <div className="text-destructive">Prospect introuvable</div>
@@ -99,6 +111,9 @@ export function LeadDetailPage() {
               <Button variant="outline" size="sm"><Globe className="mr-2 h-4 w-4" />Analyser</Button>
             </Link>
           )}
+          <Button variant="outline" size="sm" onClick={() => setShowEmailModal(true)}>
+            <Bot className="mr-2 h-4 w-4" />Générer email IA
+          </Button>
           <Link to={`/leads/${lead.id}/edit`}>
             <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4" />Modifier</Button>
           </Link>
@@ -334,6 +349,124 @@ export function LeadDetailPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Generate Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Bot className="h-5 w-5" />Générer un brouillon d'email
+                </CardTitle>
+                <button onClick={() => { setShowEmailModal(false); setGeneratedId(null) }} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {generatedId ? (
+                <div className="text-center py-4 space-y-3">
+                  <div className="text-green-600 font-medium flex items-center justify-center gap-2">
+                    <Bot className="h-5 w-5" />Email généré avec succès !
+                  </div>
+                  <div className="flex gap-2 justify-center">
+                    <Link to={`/emails/${generatedId}`}>
+                      <Button size="sm">Ouvrir l'éditeur</Button>
+                    </Link>
+                    <Button size="sm" variant="outline" onClick={() => { setShowEmailModal(false); setGeneratedId(null) }}>
+                      Fermer
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Type</Label>
+                      <select
+                        className="w-full mt-1 px-2 py-1.5 rounded-md border border-input bg-transparent text-sm"
+                        value={emailReq.type}
+                        onChange={e => setEmailReq(r => ({ ...r, type: e.target.value as EmailType }))}
+                      >
+                        <option value="FirstContact">Premier contact</option>
+                        <option value="FollowUp">Relance</option>
+                        <option value="Reply">Réponse</option>
+                        <option value="Proposal">Proposition</option>
+                        <option value="AfterMeeting">Après RDV</option>
+                        <option value="LastFollowUp">Dernière relance</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label>Style</Label>
+                      <select
+                        className="w-full mt-1 px-2 py-1.5 rounded-md border border-input bg-transparent text-sm"
+                        value={emailReq.style}
+                        onChange={e => setEmailReq(r => ({ ...r, style: e.target.value as EmailStyle }))}
+                      >
+                        <option value="Professional">Professionnel</option>
+                        <option value="Friendly">Chaleureux</option>
+                        <option value="Premium">Premium</option>
+                        <option value="Short">Court</option>
+                        <option value="Luxury">Luxe</option>
+                        <option value="French">Français classique</option>
+                        <option value="English">English</option>
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <Label>Longueur</Label>
+                      <div className="flex gap-2 mt-1">
+                        {(['Short', 'Normal', 'Long'] as EmailLength[]).map(l => (
+                          <button
+                            key={l}
+                            onClick={() => setEmailReq(r => ({ ...r, length: l }))}
+                            className={`flex-1 text-sm py-1.5 rounded border transition-colors ${
+                              emailReq.length === l ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
+                            }`}
+                          >
+                            {l === 'Short' ? 'Court' : l === 'Normal' ? 'Normal' : 'Long'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Instructions personnalisées (optionnel)</Label>
+                    <textarea
+                      className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-transparent text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      rows={3}
+                      placeholder="Ex: Mentionner notre nouveau service de réservation en ligne..."
+                      value={emailReq.customInstructions}
+                      onChange={e => setEmailReq(r => ({ ...r, customInstructions: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1"
+                      onClick={async () => {
+                        const result = await generateEmail.mutateAsync(emailReq)
+                        setGeneratedId(result.id)
+                      }}
+                      disabled={generateEmail.isPending}
+                    >
+                      {generateEmail.isPending
+                        ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Génération...</>
+                        : <><Bot className="h-4 w-4 mr-2" />Générer</>
+                      }
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowEmailModal(false)}>Annuler</Button>
+                  </div>
+                  {generateEmail.isError && (
+                    <p className="text-sm text-destructive">
+                      Erreur : {(generateEmail.error as Error).message ?? 'Une erreur est survenue.'}
+                    </p>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
