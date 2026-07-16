@@ -47,6 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExcelExportService, ExcelExportService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<ISearchService, SearchService>();
+        services.AddScoped<IWebsiteAnalyzerService, WebsiteAnalyzerService>();
 
         // Search — fournisseurs de données (ILeadSource)
         services.AddHttpClient<OpenDataGouvSource>(client =>

@@ -1,12 +1,12 @@
-using OreoLeads.Domain.Common;
+namespace OreoLeads.Application.Features.WebsiteAnalysis.DTOs;
 
-namespace OreoLeads.Domain.Entities;
-
-public class WebsiteAnalysis : BaseEntity
+public class WebsiteAnalysisDto
 {
+    public Guid Id { get; set; }
     public Guid LeadId { get; set; }
     public string Url { get; set; } = string.Empty;
-    public DateTime LastAnalysis { get; set; } = DateTime.UtcNow;
+    public DateTime LastAnalysis { get; set; }
+    public DateTime CreatedAt { get; set; }
 
     // HTTP
     public int HttpStatus { get; set; }
@@ -15,12 +15,12 @@ public class WebsiteAnalysis : BaseEntity
     public bool CertificateValid { get; set; }
     public int RedirectCount { get; set; }
 
-    // SEO / méta
+    // SEO
     public string? PageTitle { get; set; }
     public string? MetaDescription { get; set; }
     public bool HasViewport { get; set; }
 
-    // Fonctionnalités détectées
+    // Fonctionnalités
     public bool HasContactForm { get; set; }
     public bool HasQuoteForm { get; set; }
     public bool HasBookingSystem { get; set; }
@@ -37,15 +37,12 @@ public class WebsiteAnalysis : BaseEntity
 
     // Technologie
     public string? CmsDetected { get; set; }
-    public string? TechnologiesDetected { get; set; }  // JSON array
+    public List<string> Technologies { get; set; } = new();
 
     // Scoring
     public int BusinessScore { get; set; }
     public string? Summary { get; set; }
-    public string? Recommendations { get; set; }  // JSON array d'opportunités
+    public List<string> Opportunities { get; set; } = new();
+    public List<string> OreoServicesRecommended { get; set; } = new();
     public string? AnalysisError { get; set; }
-
-    
-    // Navigation
-    public Lead Lead { get; set; } = null!;
 }

@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   ArrowLeft, Edit, Trash2, Mail, MapPin,
-  Building2, Clock, Plus, X,
+  Building2, Clock, Plus, X, Globe,
 } from 'lucide-react'
 import { useLead, useLeadActivities, useLeadNotes, useDeleteLead, useDeleteNote, useCreateNote } from '@/hooks/useLeads'
 import { useLeadFollowUps, useCreateFollowUp } from '@/hooks/useFollowUps'
@@ -94,6 +94,11 @@ export function LeadDetailPage() {
           {lead.tradeName && <p className="text-muted-foreground">{lead.tradeName}</p>}
         </div>
         <div className="flex gap-2">
+          {lead.website && (
+            <Link to={`/leads/${lead.id}/analysis`}>
+              <Button variant="outline" size="sm"><Globe className="mr-2 h-4 w-4" />Analyser</Button>
+            </Link>
+          )}
           <Link to={`/leads/${lead.id}/edit`}>
             <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4" />Modifier</Button>
           </Link>
