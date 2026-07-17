@@ -1,31 +1,48 @@
 # Production docker-compose — Coolify compatible
-# Internal services are NOT exposed to the host. Only the API and frontend are exposed.
 # All secrets must be provided as environment variables (never in this file).
 # Usage: docker compose -f docker-compose.prod.yml up -d
 
 services:
-  # ─── Backend ─────────────────────────────────────────────────────────────────
+  # --- Frontend ---------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: oreoleads-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - oreoleads-net
+    labels:
+      - "com.oreoleads.service=frontend"
+
+  # --- Backend ----------------------------------------------------------------
   backend:
     build:
       context: .
-      dockerfile: src/OreoLeads.Api/Dockerfile
-    container_name: oreo-backend
+      dockerfile: Dockerfile
+    container_name: oreoleads-backend
     restart: unless-stopped
+    expose:
+      - "8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=oreo_leads;Username=oreo;Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__DefaultConnection=${DATABASE_URL}
       - ConnectionStrings__Redis=redis:6379,abortConnect=false
       - Jwt__SecretKey=${JWT_SECRET}
       - Jwt__Issuer=${JWT_ISSUER:-OreoLeads}
       - Jwt__Audience=${JWT_AUDIENCE:-OreoLeads}
-      - Jwt__ExpiryMinutes=${JWT_EXPIRY_MINUTES:-60}
-      - Jwt__RefreshTokenDays=${JWT_REFRESH_DAYS:-7}
+      - Encryption__Key=${ENCRYPTION_KEY}
+      - Redis__ConnectionString=redis:6379
+      - Brevo__EncryptionKey=${BREVO_ENCRYPTION_KEY}
+      - Airtable__EncryptionKey=${AIRTABLE_ENCRYPTION_KEY}
       - Ai__EncryptionKey=${AI_ENCRYPTION_KEY}
       - Cors__AllowedOrigins__0=${CORS_ORIGIN_0:-http://localhost:3000}
-    # No host port mapping — traffic goes through the reverse proxy (Coolify/Traefik/Nginx)
-    expose:
-      - "8080"
+      - ASPNETCORE_URLS=http://+:8080
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,75 +53,109 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
+    volumes:
+      - backend-logs:/app/logs
     networks:
-      - oreo-internal
-      - oreo-public
+      - oreoleads-net
+    labels:
+      - "com.oreoleads.service=backend"
 
-  # ─── Frontend ─────────────────────────────────────────────────────────────────
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: oreo-frontend
-    restart: unless-stopped
-    expose:
-      - "80"
-    depends_on:
-      - backend
-    networks:
-      - oreo-public
-
-  # ─── PostgreSQL ───────────────────────────────────────────────────────────────
+  # --- PostgreSQL -------------------------------------------------------------
   postgres:
     image: postgres:17-alpine
-    container_name: oreo-postgres
+    container_name: oreoleads-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: oreo_leads
-      POSTGRES_USER: oreo
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-oreoleads}
+      - POSTGRES_USER=${POSTGRES_USER:-oreoleads}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    # No exposed ports — only accessible within oreo-internal network
-    expose:
-      - "5432"
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U oreo -d oreo_leads"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oreoleads} -d ${POSTGRES_DB:-oreoleads}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - oreo-internal
+      - oreoleads-net
+    ports:
+      - "127.0.0.1:5432:5432"
 
-  # ─── Redis ────────────────────────────────────────────────────────────────────
+  # --- Redis ------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: oreo-redis
+    container_name: oreoleads-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
     volumes:
-      - redis_data:/data
-    # No exposed ports — only accessible within oreo-internal network
-    expose:
-      - "6379"
+      - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - oreo-internal
+      - oreoleads-net
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  # --- MinIO ------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: oreoleads-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-oreoleads}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - oreoleads-net
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+
+  # --- RabbitMQ ---------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: oreoleads-rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-oreoleads}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - oreoleads-net
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
 
 volumes:
-  postgres_data:
+  postgres-data:
     driver: local
-  redis_data:
+  redis-data:
+    driver: local
+  minio-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  backend-logs:
     driver: local
 
 networks:
-  oreo-internal:
+  oreoleads-net:
     driver: bridge
-    internal: true   # completely isolated — no external access
-  oreo-public:
-    driver: bridge   # connects to Coolify/Traefik reverse proxy
