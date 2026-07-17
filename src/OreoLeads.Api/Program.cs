@@ -3,16 +3,22 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using OreoLeads.Api.HealthChecks;
+using OreoLeads.Api.Middleware;
 using OreoLeads.Application.Common.Interfaces;
+using OreoLeads.Infrastructure.Configuration;
 using OreoLeads.Infrastructure.Extensions;
 using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
+    .MinimumLevel.Information()
+    .WriteTo.Console(outputTemplate:
+        "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
     .CreateBootstrapLogger();
 
 Log.Information("Starting OreoLeads API...");
@@ -36,15 +42,28 @@ try
         Log.Warning("Ai:EncryptionKey uses the default value — set a strong key in production.");
 
     // ── Serilog ───────────────────────────────────────────────────────────────
-    builder.Host.UseSerilog((context, services, configuration) => configuration
-        .ReadFrom.Configuration(context.Configuration)
-        .ReadFrom.Services(services)
-        .Enrich.FromLogContext()
-        .WriteTo.Console()
-        .WriteTo.File("logs/oreo-.log", rollingInterval: RollingInterval.Day));
+    builder.Host.UseSerilog((ctx, services, config) =>
+    {
+        config
+            .ReadFrom.Configuration(ctx.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("Application", "OreoLeads")
+            .Enrich.WithProperty("Environment", ctx.HostingEnvironment.EnvironmentName)
+            .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter())
+            .WriteTo.File(
+                new Serilog.Formatting.Json.JsonFormatter(),
+                path: "logs/oreoleads-.log",
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 30,
+                fileSizeLimitBytes: 100_000_000);
+    });
 
     // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    // ── Observability (OpenTelemetry) ─────────────────────────────────────────
+    builder.Services.AddOreoLeadsObservability(builder.Configuration);
 
     // ── Controllers ───────────────────────────────────────────────────────────
     builder.Services.AddControllers();
@@ -101,10 +120,38 @@ try
 
     builder.Services.AddAuthorization();
 
+    // ── HSTS ──────────────────────────────────────────────────────────────────
+    builder.Services.AddHsts(options =>
+    {
+        options.MaxAge = TimeSpan.FromDays(365);
+        options.IncludeSubDomains = true;
+        options.Preload = true;
+    });
+
     // ── Rate Limiting ─────────────────────────────────────────────────────────
     builder.Services.AddRateLimiter(opts =>
     {
+        var rateLimitSection = builder.Configuration.GetSection(RateLimitOptions.SectionName);
+        var globalPermitLimit = rateLimitSection.GetValue<int>("PermitLimit", 100);
+        var globalWindowSeconds = rateLimitSection.GetValue<int>("WindowSeconds", 60);
+        var globalQueueLimit = rateLimitSection.GetValue<int>("QueueLimit", 10);
+
         opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        opts.AddFixedWindowLimiter("global", limiter =>
+        {
+            limiter.PermitLimit = globalPermitLimit;
+            limiter.Window = TimeSpan.FromSeconds(globalWindowSeconds);
+            limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            limiter.QueueLimit = globalQueueLimit;
+        });
+
+        opts.OnRejected = async (context, ct) =>
+        {
+            context.HttpContext.Response.StatusCode = 429;
+            await context.HttpContext.Response.WriteAsync(
+                "Too many requests. Please try again later.", ct);
+        };
 
         // Auth endpoints: strict — 10 req/min per IP
         opts.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
@@ -168,11 +215,34 @@ try
 
     // ── Health Checks ─────────────────────────────────────────────────────────
     builder.Services.AddHealthChecks()
-        .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy())
-        .AddCheck<OreoLeads.Api.HealthChecks.DatabaseHealthCheck>("database");
+        .AddNpgSql(
+            connectionString: builder.Configuration.GetConnectionString("DefaultConnection") ?? "",
+            name: "postgresql",
+            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+            tags: ["db", "sql"])
+        .AddRedis(
+            redisConnectionString: builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379",
+            name: "redis",
+            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
+            tags: ["cache"])
+        .AddCheck<AutomationHealthCheck>("automation", tags: ["services"])
+        .AddCheck<BackgroundServicesHealthCheck>("background-services", tags: ["services"]);
+
+    builder.Services.AddTransient<AutomationHealthCheck>();
+    builder.Services.AddTransient<BackgroundServicesHealthCheck>();
 
     // ─────────────────────────────────────────────────────────────────────────
     var app = builder.Build();
+
+    // ── Security headers ─────────────────────────────────────────────────────
+    app.UseMiddleware<SecurityHeadersMiddleware>();
+
+    // ── HSTS & HTTPS (production only) ───────────────────────────────────────
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseHsts();
+        app.UseHttpsRedirection();
+    }
 
     // ── TenantContext middleware — wire OrganizationId into EF query filters ──
     app.Use(async (context, next) =>
@@ -184,8 +254,12 @@ try
         await next();
     });
 
-    app.UseMiddleware<OreoLeads.Api.Middleware.CorrelationIdMiddleware>();
-    app.UseSerilogRequestLogging();
+    app.UseMiddleware<CorrelationIdMiddleware>();
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.MessageTemplate =
+            "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+    });
 
     if (app.Environment.IsDevelopment())
     {
@@ -204,22 +278,56 @@ try
     app.MapControllers();
 
     // ── Health check endpoints ────────────────────────────────────────────────
-    app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     {
-        Predicate = check => check.Name == "self",
+        ResponseWriter = async (context, report) =>
+        {
+            context.Response.ContentType = "application/json";
+            var result = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString(),
+                checks = report.Entries.Select(e => new
+                {
+                    name = e.Key,
+                    status = e.Value.Status.ToString(),
+                    duration = e.Value.Duration.TotalMilliseconds,
+                    error = e.Value.Exception?.Message
+                }),
+                totalDuration = report.TotalDuration.TotalMilliseconds,
+                timestamp = DateTime.UtcNow
+            });
+            await context.Response.WriteAsync(result);
+        }
     }).AllowAnonymous();
 
     app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     {
-        Predicate = check => check.Name == "database",
+        Predicate = check => check.Tags.Contains("db")
     }).AllowAnonymous();
 
-    app.MapHealthChecks("/health").AllowAnonymous();
+    app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = _ => false // Always healthy if the process responds
+    }).AllowAnonymous();
 
     // ── Startup tasks ─────────────────────────────────────────────────────────
     using (var scope = app.Services.CreateScope())
     {
         var sp = scope.ServiceProvider;
+        var logger = sp.GetRequiredService<ILogger<Program>>();
+
+        // Auto-migrate database on startup
+        var db = sp.GetRequiredService<ApplicationDbContext>();
+        try
+        {
+            await db.Database.MigrateAsync();
+            logger.LogInformation("Database migrations applied successfully.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to apply database migrations.");
+            if (!app.Environment.IsDevelopment()) throw;
+        }
 
         // Seed Identity roles
         var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
