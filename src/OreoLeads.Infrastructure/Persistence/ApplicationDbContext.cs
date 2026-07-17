@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Domain.Entities;
+using OreoLeads.Domain.Entities.Analytics;
 using OreoLeads.Domain.Entities.Automation;
 using OreoLeads.Infrastructure.Identity;
 
@@ -61,6 +62,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<AutomationFolder> AutomationFolders => Set<AutomationFolder>();
     public DbSet<AutomationVersion> AutomationVersions => Set<AutomationVersion>();
 
+    // Analytics
+    public DbSet<AnalyticsDashboard> AnalyticsDashboards => Set<AnalyticsDashboard>();
+    public DbSet<AnalyticsWidget> AnalyticsWidgets => Set<AnalyticsWidget>();
+    public DbSet<AnalyticsReport> AnalyticsReports => Set<AnalyticsReport>();
+    public DbSet<AnalyticsScheduledReport> AnalyticsScheduledReports => Set<AnalyticsScheduledReport>();
+    public DbSet<AnalyticsForecast> AnalyticsForecasts => Set<AnalyticsForecast>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -117,6 +125,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         modelBuilder.Entity<AutomationFolder>()
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
         modelBuilder.Entity<AutomationVersion>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+
+        // Analytics
+        modelBuilder.Entity<AnalyticsDashboard>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AnalyticsWidget>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AnalyticsReport>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AnalyticsScheduledReport>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AnalyticsForecast>()
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
     }
 }

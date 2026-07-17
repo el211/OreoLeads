@@ -7,6 +7,8 @@ using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Infrastructure.Ai;
 using OreoLeads.Infrastructure.Ai.Providers;
 using OreoLeads.Infrastructure.Airtable;
+using OreoLeads.Infrastructure.Analytics;
+using OreoLeads.Infrastructure.Analytics.BackgroundServices;
 using OreoLeads.Infrastructure.Automation;
 using OreoLeads.Infrastructure.Automation.Actions;
 using OreoLeads.Infrastructure.Automation.BackgroundServices;
@@ -171,6 +173,14 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<AutomationRetryWorkerBackgroundService>();
         services.AddHostedService<AutomationCleanupWorkerBackgroundService>();
         services.AddHostedService<AutomationTimeoutWorkerBackgroundService>();
+
+        // ── Analytics ──────────────────────────────────────────────────────────
+        services.AddMemoryCache();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
+        services.AddScoped<IForecastService, ForecastService>();
+        services.AddScoped<IWidgetService, WidgetService>();
+        services.AddScoped<IReportService, ReportService>();
+        services.AddHostedService<ScheduledReportBackgroundService>();
 
         // FluentValidation — charge les validators depuis l'assembly Application
         services.AddValidatorsFromAssembly(typeof(IApplicationDbContext).Assembly);
