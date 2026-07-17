@@ -22,6 +22,11 @@ import { AutomationPage } from '@/pages/AutomationPage'
 import { AutomationBuilderPage } from '@/pages/AutomationBuilderPage'
 import { AutomationHistoryPage } from '@/pages/AutomationHistoryPage'
 import { AutomationMonitoringPage } from '@/pages/AutomationMonitoringPage'
+import { AnalyticsDashboardPage } from '@/pages/AnalyticsDashboardPage'
+import { AnalyticsWidgetsPage } from '@/pages/AnalyticsWidgetsPage'
+import { AnalyticsReportsPage } from '@/pages/AnalyticsReportsPage'
+import { AnalyticsForecastPage } from '@/pages/AnalyticsForecastPage'
+import { AnalyticsMonitoringPage } from '@/pages/AnalyticsMonitoringPage'
 import { AuthProvider } from '@/context/AuthContext'
 import PrivateRoute from '@/components/PrivateRoute'
 import LoginPage from '@/pages/LoginPage'
@@ -72,6 +77,11 @@ function App() {
               <Route path="airtable/mapping" element={<AirtableMappingPage />} />
               <Route path="airtable/sync-history" element={<AirtableSyncHistoryPage />} />
               <Route path="airtable/conflicts" element={<AirtableConflictsPage />} />
+              <Route path="analytics" element={<AnalyticsDashboardPage />} />
+              <Route path="analytics/widgets" element={<AnalyticsWidgetsPage />} />
+              <Route path="analytics/reports" element={<AnalyticsReportsPage />} />
+              <Route path="analytics/forecast" element={<AnalyticsForecastPage />} />
+              <Route path="analytics/monitoring" element={<AnalyticsMonitoringPage />} />
               <Route path="automation" element={<AutomationPage />} />
               <Route path="automation/builder/:id" element={<AutomationBuilderPage />} />
               <Route path="automation/history" element={<AutomationHistoryPage />} />
