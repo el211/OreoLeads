@@ -1,0 +1,83 @@
+# docker-compose.coolify.yml
+# Déploiement Coolify — backend + frontend uniquement.
+# PostgreSQL, Redis et RabbitMQ sont fournis par les ressources Coolify existantes.
+# Toutes les valeurs sensibles doivent être déclarées comme variables d'environnement dans Coolify.
+# Ne jamais écrire de secret dans ce fichier.
+
+services:
+
+  # ── Backend ASP.NET Core ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oreoleads-backend
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      # ── Runtime ──────────────────────────────────────────────────────────────
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+
+      # ── Base de données (PostgreSQL Coolify existant) ─────────────────────
+      # Format Npgsql : Host=<host>;Port=5432;Database=<db>;Username=<user>;Password=<pass>
+      - ConnectionStrings__DefaultConnection=${DATABASE_URL}
+
+      # ── Cache (Redis Coolify existant) ────────────────────────────────────
+      # Format StackExchange.Redis : <host>:<port>,password=<pass>,abortConnect=false
+      - ConnectionStrings__Redis=${REDIS_CONNECTION_STRING}
+
+      # ── Authentification JWT ──────────────────────────────────────────────
+      - Jwt__SecretKey=${JWT_SECRET}
+      - Jwt__Issuer=${JWT_ISSUER:-OreoLeads}
+      - Jwt__Audience=${JWT_AUDIENCE:-OreoLeads}
+
+      # ── Chiffrement AES-256-GCM ───────────────────────────────────────────
+      - Encryption__Key=${ENCRYPTION_KEY}
+
+      # ── CORS (URL publique du frontend) ───────────────────────────────────
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS}
+
+      # ── Intégrations tierces (optionnelles selon usage) ───────────────────
+      - Ai__OpenAiApiKey=${OPENAI_API_KEY:-}
+      - Brevo__ApiKey=${BREVO_API_KEY:-}
+      - Airtable__AccessToken=${AIRTABLE_TOKEN:-}
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - backend-logs:/app/logs
+    networks:
+      - oreoleads-internal
+
+  # ── Frontend React / Nginx ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: oreoleads-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - oreoleads-internal
+
+# ── Volumes ────────────────────────────────────────────────────────────────
+volumes:
+  backend-logs:
+    driver: local
+
+# ── Réseau interne ─────────────────────────────────────────────────────────
+# Le frontend (Nginx) joint le backend via son nom de service "backend:8080".
+# Coolify expose le frontend publiquement et gère le domaine + HTTPS.
+networks:
+  oreoleads-internal:
+    driver: bridge
