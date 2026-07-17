@@ -24,6 +24,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<EmailDraftVersion> EmailDraftVersions => Set<EmailDraftVersion>();
     public DbSet<AiConfiguration> AiConfigurations => Set<AiConfiguration>();
     public DbSet<PromptTemplate> PromptTemplates => Set<PromptTemplate>();
+    public DbSet<BrevoConfiguration> BrevoConfigurations => Set<BrevoConfiguration>();
+    public DbSet<EmailSendJob> EmailSendJobs => Set<EmailSendJob>();
+    public DbSet<EmailEvent> EmailEvents => Set<EmailEvent>();
+    public DbSet<UnsubscribeRecord> UnsubscribeRecords => Set<UnsubscribeRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
