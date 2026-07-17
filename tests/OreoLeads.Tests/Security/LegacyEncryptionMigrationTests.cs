@@ -78,27 +78,67 @@ public class LegacyEncryptionMigrationTests
         result.Should().Be(PlainText);
     }
 
-    // ── 2. Migration vers GCM : la valeur est rechiffrée à l'écriture ─────────
+    // ── 2. Migration vers GCM : la valeur est rechiffrée automatiquement ──────
 
     [Fact]
-    public void AfterReadingLegacyCbc_ReEncryptedValueIsGcm()
+    public void AfterReadingLegacyCbc_ReEncryptedValueIsVersionedGcm()
     {
         var svc          = BuildGcmService();
         var legacyCipher = EncryptWithLegacyCbc(PlainText, LegacySecret);
 
-        // Step 1: read the legacy CBC value (simulates what GetDecryptedApiKey does)
+        // Step 1: read the legacy CBC value (simulates GetCurrentAsync auto-migration)
         var decrypted = svc.TryDecryptWithCbcFallback(legacyCipher, LegacySecret);
         decrypted.Should().Be(PlainText);
 
-        // Step 2: re-encrypt with GCM (simulates SaveAsync after user updates config)
+        // Step 2: re-encrypt with GCM (produces gcm:v1: format)
         var gcmCipher = svc.Encrypt(decrypted!);
 
-        // Step 3: the new ciphertext must be readable via Decrypt() — no CBC needed
+        // Step 3: the new ciphertext must have the versioned prefix
+        gcmCipher.Should().StartWith("gcm:v1:", because: "Encrypt must produce the versioned format");
+
+        // Step 4: the new ciphertext must be readable via Decrypt() — no CBC needed
         var roundTripped = svc.Decrypt(gcmCipher);
         roundTripped.Should().Be(PlainText);
 
-        // Step 4: the GCM ciphertext must differ from the old CBC one
+        // Step 5: the versioned ciphertext must differ from the old CBC one
         gcmCipher.Should().NotBe(legacyCipher);
+
+        // Step 6: IsVersioned correctly classifies old vs new
+        svc.IsVersioned(gcmCipher).Should().BeTrue();
+        svc.IsVersioned(legacyCipher).Should().BeFalse();
+    }
+
+    [Fact]
+    public void VersionedValue_TryDecryptWithCbcFallback_NeverTriesCbc()
+    {
+        // A gcm:v1: value encrypted with key1 must return null when decrypted with key2
+        // (wrong GCM key) even if legacySecret would produce a valid CBC result.
+        var svc1   = BuildGcmService("KeyOne_AtLeast32Characters____!!");
+        var svc2   = BuildGcmService("KeyTwo_AtLeast32Characters____!!");
+
+        var versioned = svc1.Encrypt(PlainText); // gcm:v1: prefix
+        versioned.Should().StartWith("gcm:v1:");
+
+        // svc2 cannot GCM-decrypt it, and because it IS versioned, CBC must NOT be tried
+        var result = svc2.TryDecryptWithCbcFallback(versioned, LegacySecret);
+        result.Should().BeNull(because: "a gcm:v1: value must never fall back to CBC");
+    }
+
+    [Fact]
+    public void MigrationIsIdempotent_VersionedValueIsNotReEncrypted()
+    {
+        var svc = BuildGcmService();
+
+        // First call: encrypts and produces gcm:v1:
+        var first = svc.Encrypt(PlainText);
+        first.Should().StartWith("gcm:v1:");
+
+        // IsVersioned returns true → no migration needed
+        svc.IsVersioned(first).Should().BeTrue();
+
+        // Decrypting again must return the same plaintext
+        var result = svc.TryDecryptWithCbcFallback(first, LegacySecret);
+        result.Should().Be(PlainText);
     }
 
     [Fact]
@@ -131,14 +171,15 @@ public class LegacyEncryptionMigrationTests
     public void TryDecryptWithCbcFallback_TamperedGcmTag_ReturnsNull()
     {
         var svc       = BuildGcmService();
-        var gcmCipher = svc.Encrypt(PlainText);
+        var gcmCipher = svc.Encrypt(PlainText); // "gcm:v1:<base64>"
 
-        // Tamper with the GCM authentication tag (bytes 12–27)
-        var raw  = Convert.FromBase64String(gcmCipher);
+        // Strip prefix, tamper with the GCM authentication tag (bytes 12–27), re-attach prefix
+        const string prefix = "gcm:v1:";
+        var raw  = Convert.FromBase64String(gcmCipher[prefix.Length..]);
         raw[15] ^= 0xFF; // flip bits inside the tag
-        var tampered = Convert.ToBase64String(raw);
+        var tampered = prefix + Convert.ToBase64String(raw);
 
-        // GCM fails (tag mismatch); CBC also fails (wrong format/padding)
+        // gcm:v1: prefix → GCM path only; tag mismatch → null (no CBC fallback attempted)
         var result = svc.TryDecryptWithCbcFallback(tampered, LegacySecret);
         result.Should().BeNull();
     }
@@ -147,11 +188,12 @@ public class LegacyEncryptionMigrationTests
     public void Decrypt_TamperedGcmTag_Throws()
     {
         var svc       = BuildGcmService();
-        var gcmCipher = svc.Encrypt(PlainText);
+        var gcmCipher = svc.Encrypt(PlainText); // "gcm:v1:<base64>"
 
-        var raw  = Convert.FromBase64String(gcmCipher);
+        const string prefix = "gcm:v1:";
+        var raw  = Convert.FromBase64String(gcmCipher[prefix.Length..]);
         raw[15] ^= 0xFF;
-        var tampered = Convert.ToBase64String(raw);
+        var tampered = prefix + Convert.ToBase64String(raw);
 
         var act = () => svc.Decrypt(tampered);
         act.Should().Throw<CryptographicException>();

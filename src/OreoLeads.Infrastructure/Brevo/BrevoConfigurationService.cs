@@ -32,9 +32,36 @@ internal sealed class BrevoConfigurationService : IBrevoConfigurationService
     }
 
     public async Task<BrevoConfiguration?> GetCurrentAsync(CancellationToken ct = default)
-        => await _db.Set<BrevoConfiguration>()
-                    .OrderBy(x => x.CreatedAt)
-                    .FirstOrDefaultAsync(ct);
+    {
+        var config = await _db.Set<BrevoConfiguration>()
+                              .OrderBy(x => x.CreatedAt)
+                              .FirstOrDefaultAsync(ct);
+        if (config is null) return null;
+
+        // Auto-migrate any legacy (unversioned) encrypted fields to gcm:v1: on first read.
+        // This covers both old raw-GCM and old CBC values. Idempotent: versioned values skipped.
+        bool needsSave = false;
+
+        if (!string.IsNullOrWhiteSpace(config.EncryptedApiKey) && !_encryption.IsVersioned(config.EncryptedApiKey))
+        {
+            var plain = _encryption.TryDecryptWithCbcFallback(config.EncryptedApiKey, _legacyCbcSecret);
+            if (plain is not null) { config.EncryptedApiKey = _encryption.Encrypt(plain); needsSave = true; }
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.WebhookSecret) && !_encryption.IsVersioned(config.WebhookSecret))
+        {
+            var plain = _encryption.TryDecryptWithCbcFallback(config.WebhookSecret, _legacyCbcSecret);
+            if (plain is not null) { config.WebhookSecret = _encryption.Encrypt(plain); needsSave = true; }
+        }
+
+        if (needsSave)
+        {
+            config.SetUpdatedAt();
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return config;
+    }
 
     public async Task<BrevoConfiguration> SaveAsync(UpdateBrevoConfigurationDto dto, CancellationToken ct = default)
     {

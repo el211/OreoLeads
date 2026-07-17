@@ -31,10 +31,29 @@ internal sealed class AirtableConfigurationService : IAirtableConfigurationServi
 
     public async Task<AirtableConfiguration?> GetCurrentAsync(
         Guid? organizationId, CancellationToken ct = default)
-        => await _db.Set<AirtableConfiguration>()
-                    .Include(x => x.FieldMappings)
-                    .OrderBy(x => x.CreatedAt)
-                    .FirstOrDefaultAsync(ct);
+    {
+        var config = await _db.Set<AirtableConfiguration>()
+                              .Include(x => x.FieldMappings)
+                              .OrderBy(x => x.CreatedAt)
+                              .FirstOrDefaultAsync(ct);
+        if (config is null) return null;
+
+        // Auto-migrate any legacy (unversioned) access token to gcm:v1: on first read.
+        // Idempotent: versioned values are skipped unconditionally.
+        if (!string.IsNullOrWhiteSpace(config.EncryptedAccessToken) &&
+            !_encryption.IsVersioned(config.EncryptedAccessToken))
+        {
+            var plain = _encryption.TryDecryptWithCbcFallback(config.EncryptedAccessToken, _legacyCbcSecret);
+            if (plain is not null)
+            {
+                config.EncryptedAccessToken = _encryption.Encrypt(plain);
+                config.SetUpdatedAt();
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
+        return config;
+    }
 
     public async Task<AirtableConfiguration> SaveAsync(
         UpdateAirtableConfigurationDto dto, Guid? organizationId, CancellationToken ct = default)

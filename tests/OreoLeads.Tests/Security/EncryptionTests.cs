@@ -47,15 +47,36 @@ public class EncryptionTests
     public void Decrypt_WithTamperedCiphertext_Throws()
     {
         const string plain = "sk-api-key-secret";
-        var encrypted = _svc.Encrypt(plain);
+        var encrypted = _svc.Encrypt(plain); // "gcm:v1:<base64>"
 
-        // Tamper with the last byte of the Base64-decoded payload
-        var bytes = Convert.FromBase64String(encrypted);
+        // Strip the prefix, tamper with the last byte, re-attach prefix
+        const string prefix = "gcm:v1:";
+        var bytes = Convert.FromBase64String(encrypted[prefix.Length..]);
         bytes[^1] ^= 0xFF;
-        var tampered = Convert.ToBase64String(bytes);
+        var tampered = prefix + Convert.ToBase64String(bytes);
 
         var act = () => _svc.Decrypt(tampered);
         act.Should().Throw<Exception>(because: "GCM authentication tag verification must fail");
+    }
+
+    [Fact]
+    public void Encrypt_ProducesVersionedPrefix()
+    {
+        var encrypted = _svc.Encrypt("anything");
+        encrypted.Should().StartWith("gcm:v1:", because: "all new values must use the versioned format");
+    }
+
+    [Fact]
+    public void IsVersioned_VersionedValue_ReturnsTrue()
+    {
+        var encrypted = _svc.Encrypt("test");
+        _svc.IsVersioned(encrypted).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsVersioned_RawBase64_ReturnsFalse()
+    {
+        _svc.IsVersioned(Convert.ToBase64String(new byte[32])).Should().BeFalse();
     }
 
     [Fact]

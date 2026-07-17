@@ -19,7 +19,25 @@ internal sealed class AiConfigurationService : IAiConfigurationService
     }
 
     public async Task<AiConfiguration?> GetCurrentAsync()
-        => await _db.Set<AiConfiguration>().OrderBy(x => x.CreatedAt).FirstOrDefaultAsync();
+    {
+        var config = await _db.Set<AiConfiguration>().OrderBy(x => x.CreatedAt).FirstOrDefaultAsync();
+        if (config is null) return null;
+
+        // Auto-migrate legacy unversioned GCM values (written before gcm:v1: prefix was introduced).
+        if (!string.IsNullOrWhiteSpace(config.EncryptedApiKey) && !_encryption.IsVersioned(config.EncryptedApiKey))
+        {
+            try
+            {
+                var plain = _encryption.Decrypt(config.EncryptedApiKey); // handles raw GCM
+                config.EncryptedApiKey = _encryption.Encrypt(plain);     // now gcm:v1:
+                config.SetUpdatedAt();
+                await _db.SaveChangesAsync();
+            }
+            catch { /* corrupted value — leave as-is, caller handles null */ }
+        }
+
+        return config;
+    }
 
     public async Task<AiConfiguration> SaveAsync(UpdateAiConfigurationDto dto)
     {
