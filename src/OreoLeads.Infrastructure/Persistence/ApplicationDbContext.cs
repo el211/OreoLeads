@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Domain.Entities;
+using OreoLeads.Domain.Entities.Automation;
 using OreoLeads.Infrastructure.Identity;
 
 namespace OreoLeads.Infrastructure.Persistence;
@@ -45,6 +46,21 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<AirtableSyncLog> AirtableSyncLogs => Set<AirtableSyncLog>();
     public DbSet<AirtableRecordLink> AirtableRecordLinks => Set<AirtableRecordLink>();
 
+    // Automation
+    public DbSet<AutomationWorkflow> AutomationWorkflows => Set<AutomationWorkflow>();
+    public DbSet<AutomationTrigger> AutomationTriggers => Set<AutomationTrigger>();
+    public DbSet<AutomationAction> AutomationActions => Set<AutomationAction>();
+    public DbSet<AutomationCondition> AutomationConditions => Set<AutomationCondition>();
+    public DbSet<AutomationVariable> AutomationVariables => Set<AutomationVariable>();
+    public DbSet<AutomationSchedule> AutomationSchedules => Set<AutomationSchedule>();
+    public DbSet<AutomationExecution> AutomationExecutions => Set<AutomationExecution>();
+    public DbSet<AutomationExecutionLog> AutomationExecutionLogs => Set<AutomationExecutionLog>();
+    public DbSet<AutomationExecutionError> AutomationExecutionErrors => Set<AutomationExecutionError>();
+    public DbSet<AutomationQueueItem> AutomationQueueItems => Set<AutomationQueueItem>();
+    public DbSet<AutomationTemplate> AutomationTemplates => Set<AutomationTemplate>();
+    public DbSet<AutomationFolder> AutomationFolders => Set<AutomationFolder>();
+    public DbSet<AutomationVersion> AutomationVersions => Set<AutomationVersion>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -73,6 +89,34 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         modelBuilder.Entity<AirtableSyncLog>()
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
         modelBuilder.Entity<AirtableRecordLink>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+
+        // Automation
+        modelBuilder.Entity<AutomationWorkflow>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationTrigger>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationAction>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationCondition>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationVariable>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationSchedule>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationExecution>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationExecutionLog>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationExecutionError>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationQueueItem>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationTemplate>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId || e.IsBuiltIn);
+        modelBuilder.Entity<AutomationFolder>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AutomationVersion>()
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
     }
 }

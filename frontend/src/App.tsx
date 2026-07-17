@@ -18,6 +18,10 @@ import { AirtableConflictsPage } from '@/pages/AirtableConflictsPage'
 import { EmailDraftsPage } from '@/pages/EmailDraftsPage'
 import { EmailEditorPage } from '@/pages/EmailEditorPage'
 import { PromptTemplatesPage } from '@/pages/PromptTemplatesPage'
+import { AutomationPage } from '@/pages/AutomationPage'
+import { AutomationBuilderPage } from '@/pages/AutomationBuilderPage'
+import { AutomationHistoryPage } from '@/pages/AutomationHistoryPage'
+import { AutomationMonitoringPage } from '@/pages/AutomationMonitoringPage'
 import { AuthProvider } from '@/context/AuthContext'
 import PrivateRoute from '@/components/PrivateRoute'
 import LoginPage from '@/pages/LoginPage'
@@ -68,6 +72,10 @@ function App() {
               <Route path="airtable/mapping" element={<AirtableMappingPage />} />
               <Route path="airtable/sync-history" element={<AirtableSyncHistoryPage />} />
               <Route path="airtable/conflicts" element={<AirtableConflictsPage />} />
+              <Route path="automation" element={<AutomationPage />} />
+              <Route path="automation/builder/:id" element={<AutomationBuilderPage />} />
+              <Route path="automation/history" element={<AutomationHistoryPage />} />
+              <Route path="automation/monitoring" element={<AutomationMonitoringPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

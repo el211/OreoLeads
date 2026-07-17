@@ -7,6 +7,9 @@ using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Infrastructure.Ai;
 using OreoLeads.Infrastructure.Ai.Providers;
 using OreoLeads.Infrastructure.Airtable;
+using OreoLeads.Infrastructure.Automation;
+using OreoLeads.Infrastructure.Automation.Actions;
+using OreoLeads.Infrastructure.Automation.BackgroundServices;
 using OreoLeads.Infrastructure.Brevo;
 using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
@@ -140,6 +143,34 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAirtableSyncService, AirtableSyncService>();
         services.AddScoped<IAirtableWebhookService, AirtableWebhookService>();
         services.AddHostedService<AirtableSyncBackgroundService>();
+
+        // ── Automation Engine ──────────────────────────────────────────────────
+        services.AddSingleton<IAutomationQueue, AutomationQueueService>();
+        services.AddScoped<IAutomationEngine, AutomationEngine>();
+        services.AddScoped<IAutomationScheduler, AutomationSchedulerService>();
+        services.AddScoped<IAutomationExecutor, AutomationExecutorService>();
+        services.AddScoped<IAutomationValidator, AutomationValidatorService>();
+        services.AddScoped<IAutomationWorkflowService, AutomationWorkflowService>();
+
+        // Action handlers
+        services.AddScoped<SendEmailActionHandler>();
+        services.AddScoped<ChangeStatusActionHandler>();
+        services.AddScoped<AddTagActionHandler>();
+        services.AddScoped<RemoveTagActionHandler>();
+        services.AddScoped<CreateFollowUpActionHandler>();
+        services.AddScoped<CreateNoteActionHandler>();
+        services.AddScoped<WaitActionHandler>();
+        services.AddScoped<SetVariableActionHandler>();
+        services.AddScoped<ExecuteWorkflowActionHandler>();
+        services.AddHttpClient<HttpRequestActionHandler>();
+        services.AddScoped<HttpRequestActionHandler>();
+
+        // Background services
+        services.AddHostedService<AutomationSchedulerBackgroundService>();
+        services.AddHostedService<AutomationQueueWorkerBackgroundService>();
+        services.AddHostedService<AutomationRetryWorkerBackgroundService>();
+        services.AddHostedService<AutomationCleanupWorkerBackgroundService>();
+        services.AddHostedService<AutomationTimeoutWorkerBackgroundService>();
 
         // FluentValidation — charge les validators depuis l'assembly Application
         services.AddValidatorsFromAssembly(typeof(IApplicationDbContext).Assembly);
