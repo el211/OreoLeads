@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Infrastructure.Ai;
 using OreoLeads.Infrastructure.Ai.Providers;
+using OreoLeads.Infrastructure.Brevo;
 using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
 using OreoLeads.Infrastructure.Persistence.Repositories;
@@ -118,6 +119,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuditLogger, AuditLogger>();
+
+        // ── Brevo ─────────────────────────────────────────────────────────────
+        services.AddHttpClient<BrevoService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddScoped<IBrevoService, BrevoService>();
+        services.AddScoped<IBrevoConfigurationService, BrevoConfigurationService>();
+        services.AddScoped<IEmailQueueService, EmailQueueService>();
+        services.AddScoped<IEmailStatsService, EmailStatsService>();
+        services.AddHostedService<EmailSendBackgroundService>();
 
         // FluentValidation — charge les validators depuis l'assembly Application
         services.AddValidatorsFromAssembly(typeof(IApplicationDbContext).Assembly);

@@ -35,6 +35,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<BrevoConfiguration> BrevoConfigurations => Set<BrevoConfiguration>();
+    public DbSet<EmailSendJob> EmailSendJobs => Set<EmailSendJob>();
+    public DbSet<EmailEvent> EmailEvents => Set<EmailEvent>();
+    public DbSet<UnsubscribeRecord> UnsubscribeRecords => Set<UnsubscribeRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
