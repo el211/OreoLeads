@@ -38,7 +38,10 @@
       "Bash(taskkill /F /IM \"OreoLeads.Api*\")",
       "Bash(powershell -Command 'Get-Process | Where-Object { $_.Path -like '\\\\''*OreoLeads*'\\\\'' } | Stop-Process -Force')",
       "Bash(dotnet test:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(dotnet clean:*)",
+      "Bash(grep:*)",
+      "Bash(git add:*)"
     ]
   }
 }
