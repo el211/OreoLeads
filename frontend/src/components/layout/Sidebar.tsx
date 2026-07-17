@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell, Tag, Building2, Search, Mail, Bot, FileText, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Tag, Building2, Search, Mail, Bot, FileText, Settings, LogOut, Database, GitMerge, AlertTriangle, History } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 
@@ -15,6 +15,13 @@ const navItems = [
 const settingsItems = [
   { to: '/settings/ai', label: 'IA & Modèle', icon: Bot },
   { to: '/settings/prompts', label: 'Prompts', icon: FileText },
+  { to: '/settings/airtable', label: 'Airtable', icon: Database },
+]
+
+const airtableItems = [
+  { to: '/airtable/mapping',      label: 'Mapping champs', icon: GitMerge },
+  { to: '/airtable/sync-history', label: 'Historique sync', icon: History },
+  { to: '/airtable/conflicts',    label: 'Conflits',        icon: AlertTriangle },
 ]
 
 export function Sidebar() {
@@ -58,6 +65,30 @@ export function Sidebar() {
         </div>
 
         {settingsItems.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              )
+            }
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </NavLink>
+        ))}
+
+        <div className="pt-4 pb-1">
+          <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <Database className="h-3 w-3" />Airtable
+          </p>
+        </div>
+
+        {airtableItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

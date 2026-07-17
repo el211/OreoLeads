@@ -11,6 +11,10 @@ import { SearchPage } from '@/pages/SearchPage'
 import { SearchHistoryPage } from '@/pages/SearchHistoryPage'
 import { LeadAnalysisPage } from '@/pages/LeadAnalysisPage'
 import { AiSettingsPage } from '@/pages/AiSettingsPage'
+import { AirtableSettingsPage } from '@/pages/AirtableSettingsPage'
+import { AirtableMappingPage } from '@/pages/AirtableMappingPage'
+import { AirtableSyncHistoryPage } from '@/pages/AirtableSyncHistoryPage'
+import { AirtableConflictsPage } from '@/pages/AirtableConflictsPage'
 import { EmailDraftsPage } from '@/pages/EmailDraftsPage'
 import { EmailEditorPage } from '@/pages/EmailEditorPage'
 import { PromptTemplatesPage } from '@/pages/PromptTemplatesPage'
@@ -60,6 +64,10 @@ function App() {
               <Route path="emails/:id" element={<EmailEditorPage />} />
               <Route path="settings/ai" element={<AiSettingsPage />} />
               <Route path="settings/prompts" element={<PromptTemplatesPage />} />
+              <Route path="settings/airtable" element={<AirtableSettingsPage />} />
+              <Route path="airtable/mapping" element={<AirtableMappingPage />} />
+              <Route path="airtable/sync-history" element={<AirtableSyncHistoryPage />} />
+              <Route path="airtable/conflicts" element={<AirtableConflictsPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

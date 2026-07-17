@@ -6,9 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Infrastructure.Ai;
 using OreoLeads.Infrastructure.Ai.Providers;
+using OreoLeads.Infrastructure.Airtable;
 using OreoLeads.Infrastructure.Brevo;
 using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
+using OreoLeads.Infrastructure.Security;
 using OreoLeads.Infrastructure.Persistence.Repositories;
 using OreoLeads.Infrastructure.Services;
 using OreoLeads.Infrastructure.Sources;
@@ -22,6 +24,9 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // ── Shared encryption (AES-256-GCM) — singleton, key is stable for app lifetime ──
+        services.AddSingleton<IEncryptionService, EncryptionService>();
+
         // TenantContext — must be scoped so EF query filters get per-request values
         services.AddScoped<TenantContext>();
 
@@ -127,6 +132,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailQueueService, EmailQueueService>();
         services.AddScoped<IEmailStatsService, EmailStatsService>();
         services.AddHostedService<EmailSendBackgroundService>();
+
+        // ── Airtable ──────────────────────────────────────────────────────────
+        services.AddHttpClient<AirtableService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddScoped<IAirtableService, AirtableService>();
+        services.AddScoped<IAirtableConfigurationService, AirtableConfigurationService>();
+        services.AddScoped<IAirtableSyncService, AirtableSyncService>();
+        services.AddScoped<IAirtableWebhookService, AirtableWebhookService>();
+        services.AddHostedService<AirtableSyncBackgroundService>();
 
         // FluentValidation — charge les validators depuis l'assembly Application
         services.AddValidatorsFromAssembly(typeof(IApplicationDbContext).Assembly);
