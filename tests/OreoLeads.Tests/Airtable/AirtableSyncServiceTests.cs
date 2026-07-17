@@ -202,7 +202,7 @@ public class AirtableSyncServiceTests
         var encryption = new EncryptionService(encConfig);
 
         var airtableSvc = new StubAirtableService();
-        var configSvc   = new AirtableConfigurationService(db, airtableSvc, encryption);
+        var configSvc   = new AirtableConfigurationService(db, airtableSvc, encryption, encConfig);
         var svc         = new AirtableSyncService(db, configSvc, airtableSvc, NullLogger<AirtableSyncService>.Instance);
         return (svc, db);
     }

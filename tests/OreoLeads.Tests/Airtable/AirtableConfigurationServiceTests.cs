@@ -143,7 +143,7 @@ public class AirtableConfigurationServiceTests
             .Build();
         var encryption = new EncryptionService(encConfig);
 
-        return new AirtableConfigurationService(db, airtable, encryption);
+        return new AirtableConfigurationService(db, airtable, encryption, encConfig);
     }
 }
 

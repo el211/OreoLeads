@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Brevo.DTOs;
 using OreoLeads.Domain.Entities;
@@ -8,18 +9,26 @@ namespace OreoLeads.Infrastructure.Brevo;
 
 internal sealed class BrevoConfigurationService : IBrevoConfigurationService
 {
+    // Legacy CBC secret used before the migration to the shared GCM service.
+    // Kept so that existing database rows encrypted with the old algorithm remain readable.
+    // Rows are silently re-encrypted to GCM on the next SaveAsync call.
+    private const string LegacyCbcFallbackDefault = "OreoLeadsBrevoDefaultSecretKey32!";
+
     private readonly ApplicationDbContext _db;
     private readonly IBrevoService        _brevo;
     private readonly IEncryptionService   _encryption;
+    private readonly string               _legacyCbcSecret;
 
     public BrevoConfigurationService(
         ApplicationDbContext db,
         IBrevoService        brevo,
-        IEncryptionService   encryption)
+        IEncryptionService   encryption,
+        IConfiguration       configuration)
     {
-        _db         = db;
-        _brevo      = brevo;
-        _encryption = encryption;
+        _db              = db;
+        _brevo           = brevo;
+        _encryption      = encryption;
+        _legacyCbcSecret = configuration["Brevo:EncryptionKey"] ?? LegacyCbcFallbackDefault;
     }
 
     public async Task<BrevoConfiguration?> GetCurrentAsync(CancellationToken ct = default)
@@ -45,6 +54,9 @@ internal sealed class BrevoConfigurationService : IBrevoConfigurationService
         existing.TestModeEmail = dto.TestModeEmail;
         existing.DailyLimit    = dto.DailyLimit;
 
+        // Always re-encrypt with GCM when a new value is provided.
+        // This is also what migrates any legacy CBC value stored in the DB:
+        // the user saves → new GCM ciphertext replaces the old CBC one.
         if (!string.IsNullOrWhiteSpace(dto.ApiKey))
             existing.EncryptedApiKey = _encryption.Encrypt(dto.ApiKey);
 
@@ -56,11 +68,15 @@ internal sealed class BrevoConfigurationService : IBrevoConfigurationService
         return existing;
     }
 
+    /// <summary>
+    /// Decrypts the stored API key. Tries GCM first (new format); if that fails,
+    /// falls back to the legacy AES-256-CBC algorithm so rows written before the
+    /// migration to the shared encryption service remain readable.
+    /// </summary>
     public string? GetDecryptedApiKey(BrevoConfiguration config)
     {
         if (string.IsNullOrWhiteSpace(config.EncryptedApiKey)) return null;
-        try { return _encryption.Decrypt(config.EncryptedApiKey); }
-        catch { return null; }
+        return _encryption.TryDecryptWithCbcFallback(config.EncryptedApiKey, _legacyCbcSecret);
     }
 
     public async Task<BrevoTestResultDto> TestConnectionAsync(CancellationToken ct = default)

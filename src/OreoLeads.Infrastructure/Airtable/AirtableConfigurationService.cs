@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Airtable.DTOs;
 using OreoLeads.Domain.Entities;
@@ -8,18 +9,24 @@ namespace OreoLeads.Infrastructure.Airtable;
 
 internal sealed class AirtableConfigurationService : IAirtableConfigurationService
 {
+    // Legacy CBC secret used before the migration to the shared GCM service.
+    private const string LegacyCbcFallbackDefault = "OreoLeadsAirtableDefaultSecretKey!";
+
     private readonly ApplicationDbContext _db;
     private readonly IAirtableService     _airtable;
     private readonly IEncryptionService   _encryption;
+    private readonly string               _legacyCbcSecret;
 
     public AirtableConfigurationService(
         ApplicationDbContext db,
         IAirtableService     airtable,
-        IEncryptionService   encryption)
+        IEncryptionService   encryption,
+        IConfiguration       configuration)
     {
-        _db         = db;
-        _airtable   = airtable;
-        _encryption = encryption;
+        _db              = db;
+        _airtable        = airtable;
+        _encryption      = encryption;
+        _legacyCbcSecret = configuration["Airtable:EncryptionKey"] ?? LegacyCbcFallbackDefault;
     }
 
     public async Task<AirtableConfiguration?> GetCurrentAsync(
@@ -58,11 +65,15 @@ internal sealed class AirtableConfigurationService : IAirtableConfigurationServi
         return existing;
     }
 
+    /// <summary>
+    /// Decrypts the stored access token. Tries GCM first (new format); if that fails,
+    /// falls back to the legacy AES-256-CBC algorithm so rows written before the
+    /// migration to the shared encryption service remain readable.
+    /// </summary>
     public string? GetDecryptedAccessToken(AirtableConfiguration config)
     {
         if (string.IsNullOrWhiteSpace(config.EncryptedAccessToken)) return null;
-        try { return _encryption.Decrypt(config.EncryptedAccessToken); }
-        catch { return null; }
+        return _encryption.TryDecryptWithCbcFallback(config.EncryptedAccessToken, _legacyCbcSecret);
     }
 
     public async Task<AirtableTestResultDto> TestConnectionAsync(
