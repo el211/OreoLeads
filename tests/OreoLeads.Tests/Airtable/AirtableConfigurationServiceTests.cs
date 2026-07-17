@@ -6,24 +6,36 @@ using OreoLeads.Domain.Enums;
 using OreoLeads.Infrastructure.Airtable;
 using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
+using OreoLeads.Infrastructure.Security;
 
 namespace OreoLeads.Tests.Airtable;
 
 public class AirtableConfigurationServiceTests
 {
     // ── 1. EncryptDecrypt_Token_RoundTrips ────────────────────────────────────
+    // The encryption is now handled by the shared EncryptionService (AES-256-GCM).
+    // We verify the round-trip via GetDecryptedAccessToken after a Save.
 
     [Fact]
-    public void EncryptDecrypt_Token_RoundTrips()
+    public async Task EncryptDecrypt_Token_RoundTrips()
     {
         var svc   = BuildService();
         const string original = "pat_super_secret_token_123";
 
-        var encrypted = svc.EncryptToken(original);
-        var decrypted = svc.DecryptToken(encrypted);
+        var dto = new UpdateAirtableConfigurationDto(
+            AccessToken:      original,
+            ConnectionName:   "RoundTrip",
+            BaseId:           "appTest",
+            TableIdOrName:    "T1",
+            IsEnabled:        false,
+            SyncDirection:    SyncDirection.OreoLeadsToAirtable,
+            ConflictStrategy: ConflictStrategy.OreoLeadsWins
+        );
+        var config    = await svc.SaveAsync(dto, null);
+        var decrypted = svc.GetDecryptedAccessToken(config);
 
         decrypted.Should().Be(original);
-        encrypted.Should().NotBe(original);
+        config.EncryptedAccessToken.Should().NotBe(original);
     }
 
     // ── 2. GetCurrentAsync_NoConfig_ReturnsNull ───────────────────────────────
@@ -123,14 +135,15 @@ public class AirtableConfigurationServiceTests
 
         var airtable = new StubAirtableService();
 
-        var config = new ConfigurationBuilder()
+        var encConfig = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Airtable:EncryptionKey"] = "TestKey12345"
+                ["Encryption:Key"] = "TestEncryptionKey_AtLeast32Chars!!"
             })
             .Build();
+        var encryption = new EncryptionService(encConfig);
 
-        return new AirtableConfigurationService(db, airtable, config);
+        return new AirtableConfigurationService(db, airtable, encryption);
     }
 }
 

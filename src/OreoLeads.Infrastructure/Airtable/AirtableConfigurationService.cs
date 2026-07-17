@@ -1,7 +1,4 @@
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Airtable.DTOs;
 using OreoLeads.Domain.Entities;
@@ -13,21 +10,16 @@ internal sealed class AirtableConfigurationService : IAirtableConfigurationServi
 {
     private readonly ApplicationDbContext _db;
     private readonly IAirtableService     _airtable;
-    private readonly byte[]               _encKey;
-    private readonly byte[]               _encIv;
+    private readonly IEncryptionService   _encryption;
 
     public AirtableConfigurationService(
         ApplicationDbContext db,
         IAirtableService     airtable,
-        IConfiguration       configuration)
+        IEncryptionService   encryption)
     {
-        _db       = db;
-        _airtable = airtable;
-
-        var secret = configuration["Airtable:EncryptionKey"] ?? "OreoLeadsAirtableDefaultSecretKey!";
-        using var sha = SHA256.Create();
-        _encKey = sha.ComputeHash(Encoding.UTF8.GetBytes(secret)); // 32 bytes
-        _encIv  = _encKey[..16];                                    // 16 bytes
+        _db         = db;
+        _airtable   = airtable;
+        _encryption = encryption;
     }
 
     public async Task<AirtableConfiguration?> GetCurrentAsync(
@@ -59,7 +51,7 @@ internal sealed class AirtableConfigurationService : IAirtableConfigurationServi
         existing.ConflictStrategy = dto.ConflictStrategy;
 
         if (!string.IsNullOrWhiteSpace(dto.AccessToken))
-            existing.EncryptedAccessToken = EncryptToken(dto.AccessToken);
+            existing.EncryptedAccessToken = _encryption.Encrypt(dto.AccessToken);
 
         existing.SetUpdatedAt();
         await _db.SaveChangesAsync(ct);
@@ -69,7 +61,7 @@ internal sealed class AirtableConfigurationService : IAirtableConfigurationServi
     public string? GetDecryptedAccessToken(AirtableConfiguration config)
     {
         if (string.IsNullOrWhiteSpace(config.EncryptedAccessToken)) return null;
-        try { return DecryptToken(config.EncryptedAccessToken); }
+        try { return _encryption.Decrypt(config.EncryptedAccessToken); }
         catch { return null; }
     }
 
@@ -147,27 +139,4 @@ internal sealed class AirtableConfigurationService : IAirtableConfigurationServi
         await _db.SaveChangesAsync(ct);
     }
 
-    // ── Encryption (AES-256-CBC) ──────────────────────────────────────────────
-
-    internal string EncryptToken(string plainKey)
-    {
-        using var aes = Aes.Create();
-        aes.Key = _encKey;
-        aes.IV  = _encIv;
-        using var encryptor = aes.CreateEncryptor();
-        var bytes     = Encoding.UTF8.GetBytes(plainKey);
-        var encrypted = encryptor.TransformFinalBlock(bytes, 0, bytes.Length);
-        return Convert.ToBase64String(encrypted);
-    }
-
-    internal string DecryptToken(string encryptedKey)
-    {
-        using var aes = Aes.Create();
-        aes.Key = _encKey;
-        aes.IV  = _encIv;
-        using var decryptor = aes.CreateDecryptor();
-        var bytes     = Convert.FromBase64String(encryptedKey);
-        var decrypted = decryptor.TransformFinalBlock(bytes, 0, bytes.Length);
-        return Encoding.UTF8.GetString(decrypted);
-    }
 }

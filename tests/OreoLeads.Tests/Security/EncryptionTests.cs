@@ -1,37 +1,35 @@
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
-using OreoLeads.Infrastructure.Ai;
-using OreoLeads.Infrastructure.Persistence;
+using OreoLeads.Infrastructure.Security;
 
 namespace OreoLeads.Tests.Security;
 
 /// <summary>
-/// Tests for AES-GCM encryption used to store API keys.
+/// Tests for the shared AES-256-GCM EncryptionService.
 /// All tests are self-contained — no DB access needed.
 /// </summary>
 public class EncryptionTests
 {
-    private readonly AiConfigurationService _svc;
+    private readonly EncryptionService _svc;
 
     public EncryptionTests()
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Ai:EncryptionKey"] = "TestEncryptionKey_AtLeast32Chars!!"
+                ["Encryption:Key"] = "TestEncryptionKey_AtLeast32Chars!!"
             })
             .Build();
 
-        // Pass a null DbContext — tests only call Encrypt/Decrypt
-        _svc = new AiConfigurationService(null!, config);
+        _svc = new EncryptionService(config);
     }
 
     [Fact]
     public void Encrypt_ThenDecrypt_ReturnsOriginal()
     {
         const string original = "sk-test-api-key-12345";
-        var encrypted = _svc.EncryptApiKey(original);
-        var decrypted = _svc.DecryptApiKey(encrypted);
+        var encrypted = _svc.Encrypt(original);
+        var decrypted = _svc.Decrypt(encrypted);
         decrypted.Should().Be(original);
     }
 
@@ -40,8 +38,8 @@ public class EncryptionTests
     {
         // AES-GCM with random nonce — same plaintext never produces same ciphertext
         const string plain = "same-key";
-        var c1 = _svc.EncryptApiKey(plain);
-        var c2 = _svc.EncryptApiKey(plain);
+        var c1 = _svc.Encrypt(plain);
+        var c2 = _svc.Encrypt(plain);
         c1.Should().NotBe(c2, because: "random nonce must produce different ciphertext each time");
     }
 
@@ -49,38 +47,68 @@ public class EncryptionTests
     public void Decrypt_WithTamperedCiphertext_Throws()
     {
         const string plain = "sk-api-key-secret";
-        var encrypted = _svc.EncryptApiKey(plain);
+        var encrypted = _svc.Encrypt(plain);
 
         // Tamper with the last byte of the Base64-decoded payload
         var bytes = Convert.FromBase64String(encrypted);
         bytes[^1] ^= 0xFF;
         var tampered = Convert.ToBase64String(bytes);
 
-        var act = () => _svc.DecryptApiKey(tampered);
+        var act = () => _svc.Decrypt(tampered);
         act.Should().Throw<Exception>(because: "GCM authentication tag verification must fail");
     }
 
     [Fact]
     public void Encrypt_EmptyString_RoundTrips()
     {
-        var encrypted = _svc.EncryptApiKey(string.Empty);
-        var decrypted = _svc.DecryptApiKey(encrypted);
+        var encrypted = _svc.Encrypt(string.Empty);
+        var decrypted = _svc.Decrypt(encrypted);
         decrypted.Should().BeEmpty();
     }
 
     [Fact]
     public void Encrypt_LongApiKey_RoundTrips()
     {
-        var longKey = new string('x', 512);
-        var encrypted = _svc.EncryptApiKey(longKey);
-        var decrypted = _svc.DecryptApiKey(encrypted);
+        var longKey   = new string('x', 512);
+        var encrypted = _svc.Encrypt(longKey);
+        var decrypted = _svc.Decrypt(encrypted);
         decrypted.Should().Be(longKey);
     }
 
     [Fact]
-    public void GetDecryptedApiKey_WithNullEncryptedKey_ReturnsNull()
+    public void FallbackKey_Ai_EncryptionKey_IsUsedWhenEncryptionKeyAbsent()
     {
-        var config = new OreoLeads.Domain.Entities.AiConfiguration { EncryptedApiKey = null };
-        _svc.GetDecryptedApiKey(config).Should().BeNull();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Ai:EncryptionKey"] = "FallbackAiKey_AtLeast32Chars!!!"
+            })
+            .Build();
+
+        var svc       = new EncryptionService(config);
+        const string plain = "brevo-api-key";
+        var encrypted = svc.Encrypt(plain);
+        svc.Decrypt(encrypted).Should().Be(plain);
+    }
+
+    [Fact]
+    public void DifferentKeys_ProduceDifferentCiphertexts()
+    {
+        var cfg1 = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Encryption:Key"] = "KeyOne_AtLeast32Characters____!!" })
+            .Build();
+        var cfg2 = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Encryption:Key"] = "KeyTwo_AtLeast32Characters____!!" })
+            .Build();
+
+        var svc1 = new EncryptionService(cfg1);
+        var svc2 = new EncryptionService(cfg2);
+
+        const string plain = "secret";
+        var enc1 = svc1.Encrypt(plain);
+
+        // svc2 must not be able to decrypt what svc1 produced
+        var act = () => svc2.Decrypt(enc1);
+        act.Should().Throw<Exception>();
     }
 }

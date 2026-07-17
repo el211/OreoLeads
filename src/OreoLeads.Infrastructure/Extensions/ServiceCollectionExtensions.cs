@@ -10,6 +10,7 @@ using OreoLeads.Infrastructure.Airtable;
 using OreoLeads.Infrastructure.Brevo;
 using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
+using OreoLeads.Infrastructure.Security;
 using OreoLeads.Infrastructure.Persistence.Repositories;
 using OreoLeads.Infrastructure.Services;
 using OreoLeads.Infrastructure.Sources;
@@ -23,6 +24,9 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // ── Shared encryption (AES-256-GCM) — singleton, key is stable for app lifetime ──
+        services.AddSingleton<IEncryptionService, EncryptionService>();
+
         // TenantContext — must be scoped so EF query filters get per-request values
         services.AddScoped<TenantContext>();
 

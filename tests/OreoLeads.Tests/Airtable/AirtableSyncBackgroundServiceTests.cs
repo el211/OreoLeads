@@ -9,6 +9,7 @@ using OreoLeads.Domain.Enums;
 using OreoLeads.Infrastructure.Airtable;
 using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
+using OreoLeads.Infrastructure.Security;
 
 namespace OreoLeads.Tests.Airtable;
 
@@ -110,15 +111,16 @@ public class AirtableSyncBackgroundServiceTests
 
         var db = new ApplicationDbContext(options, new TenantContext());
 
-        var configuration = new ConfigurationBuilder()
+        var encConfig = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Airtable:EncryptionKey"] = "TestKey12345"
+                ["Encryption:Key"] = "TestEncryptionKey_AtLeast32Chars!!"
             })
             .Build();
+        var encryption = new EncryptionService(encConfig);
 
         var airtableSvc = new StubAirtableService();
-        var configSvc   = new AirtableConfigurationService(db, airtableSvc, configuration);
+        var configSvc   = new AirtableConfigurationService(db, airtableSvc, encryption);
         var syncSvc     = new AirtableSyncService(db, configSvc, airtableSvc, NullLogger<AirtableSyncService>.Instance);
 
         return (db, syncSvc);
