@@ -39,6 +39,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<EmailSendJob> EmailSendJobs => Set<EmailSendJob>();
     public DbSet<EmailEvent> EmailEvents => Set<EmailEvent>();
     public DbSet<UnsubscribeRecord> UnsubscribeRecords => Set<UnsubscribeRecord>();
+    public DbSet<AirtableConfiguration> AirtableConfigurations => Set<AirtableConfiguration>();
+    public DbSet<AirtableFieldMapping> AirtableFieldMappings => Set<AirtableFieldMapping>();
+    public DbSet<AirtableSyncJob> AirtableSyncJobs => Set<AirtableSyncJob>();
+    public DbSet<AirtableSyncLog> AirtableSyncLogs => Set<AirtableSyncLog>();
+    public DbSet<AirtableRecordLink> AirtableRecordLinks => Set<AirtableRecordLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,5 +66,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
         modelBuilder.Entity<PromptTemplate>()
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId || e.IsSystem);
+        modelBuilder.Entity<AirtableConfiguration>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AirtableSyncJob>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AirtableSyncLog>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<AirtableRecordLink>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
     }
 }

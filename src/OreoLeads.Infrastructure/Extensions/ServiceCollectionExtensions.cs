@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Infrastructure.Ai;
 using OreoLeads.Infrastructure.Ai.Providers;
+using OreoLeads.Infrastructure.Airtable;
 using OreoLeads.Infrastructure.Brevo;
 using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
@@ -127,6 +128,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailQueueService, EmailQueueService>();
         services.AddScoped<IEmailStatsService, EmailStatsService>();
         services.AddHostedService<EmailSendBackgroundService>();
+
+        // ── Airtable ──────────────────────────────────────────────────────────
+        services.AddHttpClient<AirtableService>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddScoped<IAirtableService, AirtableService>();
+        services.AddScoped<IAirtableConfigurationService, AirtableConfigurationService>();
+        services.AddScoped<IAirtableSyncService, AirtableSyncService>();
+        services.AddScoped<IAirtableWebhookService, AirtableWebhookService>();
+        services.AddHostedService<AirtableSyncBackgroundService>();
 
         // FluentValidation — charge les validators depuis l'assembly Application
         services.AddValidatorsFromAssembly(typeof(IApplicationDbContext).Assembly);
