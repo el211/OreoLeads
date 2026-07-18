@@ -22,8 +22,11 @@ WORKDIR /app
 
 COPY --from=build /app/publish .
 
-# Create logs directory and transfer ownership to the built-in app user
-RUN mkdir -p /app/logs && chown -R $APP_UID /app/logs
+# Install Kerberos libs so Npgsql doesn't log "cannot open libgssapi_krb5.so.2"
+# and create the logs directory owned by the built-in app user
+RUN apt-get update -qq && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app/logs && chown -R $APP_UID /app/logs
 
 USER $APP_UID
 
