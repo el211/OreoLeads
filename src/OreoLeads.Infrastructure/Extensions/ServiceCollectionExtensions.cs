@@ -18,6 +18,7 @@ using OreoLeads.Infrastructure.Persistence;
 using OreoLeads.Infrastructure.Security;
 using OreoLeads.Infrastructure.Persistence.Repositories;
 using OreoLeads.Infrastructure.Services;
+using OreoLeads.Infrastructure.Smtp;
 using OreoLeads.Infrastructure.Sources;
 using StackExchange.Redis;
 
@@ -133,6 +134,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IAuditLogger, AuditLogger>();
+
+        // ── SMTP (own mailbox — OVH, Namecheap, Gmail…) ──────────────────────
+        services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.Section));
+        services.AddSingleton<SmtpEmailSender>();
 
         // ── Brevo ─────────────────────────────────────────────────────────────
         services.AddHttpClient<BrevoService>(c => c.Timeout = TimeSpan.FromSeconds(30));

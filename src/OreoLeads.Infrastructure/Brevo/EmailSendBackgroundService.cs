@@ -5,6 +5,7 @@ using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Domain.Enums;
 using OreoLeads.Infrastructure.Persistence;
+using OreoLeads.Infrastructure.Smtp;
 
 namespace OreoLeads.Infrastructure.Brevo;
 
@@ -53,82 +54,100 @@ internal sealed class EmailSendBackgroundService : BackgroundService
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
 
-        var configSvc = scope.ServiceProvider.GetRequiredService<IBrevoConfigurationService>();
-        var queueSvc  = scope.ServiceProvider.GetRequiredService<IEmailQueueService>();
-        var brevoSvc  = scope.ServiceProvider.GetRequiredService<IBrevoService>();
-        var db        = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var queueSvc = scope.ServiceProvider.GetRequiredService<IEmailQueueService>();
+        var db       = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        var config = await configSvc.GetCurrentAsync(ct);
-        if (config is null || !config.IsEnabled)
-            return;
+        // ── Resolve sender: SMTP (own mailbox) takes priority over Brevo ──────
+        var smtp = scope.ServiceProvider.GetRequiredService<SmtpEmailSender>();
 
-        var apiKey = configSvc.GetDecryptedApiKey(config);
-        if (string.IsNullOrWhiteSpace(apiKey))
+        string?            brevoApiKey = null;
+        BrevoConfiguration? brevoConfig = null;
+
+        if (!smtp.IsConfigured)
         {
-            _logger.LogWarning("Brevo API key is not configured or could not be decrypted.");
-            return;
+            var configSvc = scope.ServiceProvider.GetRequiredService<IBrevoConfigurationService>();
+            brevoConfig   = await configSvc.GetCurrentAsync(ct);
+            if (brevoConfig is null || !brevoConfig.IsEnabled) return;
+            brevoApiKey = configSvc.GetDecryptedApiKey(brevoConfig);
+            if (string.IsNullOrWhiteSpace(brevoApiKey))
+            {
+                _logger.LogWarning("No SMTP configured and Brevo API key is missing. Skipping email tick.");
+                return;
+            }
         }
 
         var pendingJobs = await queueSvc.GetPendingAsync(MaxJobsPerTick, ct);
         if (pendingJobs.Count == 0) return;
 
-        _logger.LogDebug("Processing {Count} pending email jobs.", pendingJobs.Count);
+        _logger.LogDebug("Processing {Count} pending email jobs (provider={Provider}).",
+            pendingJobs.Count, smtp.IsConfigured ? "SMTP" : "Brevo");
+
+        var brevoSvc = smtp.IsConfigured
+            ? null
+            : scope.ServiceProvider.GetRequiredService<IBrevoService>();
 
         foreach (var job in pendingJobs)
         {
             if (ct.IsCancellationRequested) break;
-            await ProcessJobAsync(job, config, apiKey, queueSvc, brevoSvc, db, ct);
+            await ProcessJobAsync(job, smtp, brevoSvc, brevoConfig, brevoApiKey, queueSvc, db, ct);
         }
     }
 
     private async Task ProcessJobAsync(
         EmailSendJob          job,
-        BrevoConfiguration    config,
-        string                apiKey,
+        SmtpEmailSender       smtp,
+        IBrevoService?        brevoSvc,
+        BrevoConfiguration?   brevoConfig,
+        string?               brevoApiKey,
         IEmailQueueService    queueSvc,
-        IBrevoService         brevoSvc,
         ApplicationDbContext  db,
         CancellationToken     ct)
     {
         using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = job.Id });
 
-        // TestMode: redirect to test address
+        // TestMode (Brevo only): redirect to test address
         var toEmail = job.ToEmail;
-        if (config.TestMode)
+        if (!smtp.IsConfigured && brevoConfig?.TestMode == true)
         {
-            if (string.IsNullOrWhiteSpace(config.TestModeEmail))
+            if (string.IsNullOrWhiteSpace(brevoConfig.TestModeEmail))
             {
-                _logger.LogWarning(
-                    "TestMode is enabled but TestModeEmail is not configured. Skipping job {JobId}.", job.Id);
+                _logger.LogWarning("TestMode is enabled but TestModeEmail is not configured. Skipping job {JobId}.", job.Id);
                 return;
             }
-            _logger.LogInformation(
-                "TestMode: redirecting email from {Original} to {TestEmail}.", toEmail, config.TestModeEmail);
-            toEmail = config.TestModeEmail;
+            toEmail = brevoConfig.TestModeEmail;
         }
 
         await queueSvc.MarkSendingAsync(job.Id, ct);
 
         try
         {
-            var request = new EmailSendRequest(
-                ApiKey:      apiKey,
-                SenderName:  config.SenderName,
-                SenderEmail: config.SenderEmail,
-                ReplyTo:     config.ReplyTo,
-                ToEmail:     toEmail,
-                ToName:      job.ToName,
-                Subject:     job.Subject,
-                HtmlBody:    job.HtmlBody,
-                LeadId:      job.LeadId,
-                Tags:        new[] { $"lead:{job.LeadId}" }
-            );
+            string messageId;
 
-            var messageId = await brevoSvc.SendEmailAsync(request, ct);
+            if (smtp.IsConfigured)
+            {
+                // ── Send via SMTP (own mailbox) ───────────────────────────────
+                messageId = await smtp.SendAsync(toEmail, job.ToName, job.Subject, job.HtmlBody, ct);
+            }
+            else
+            {
+                // ── Send via Brevo API ────────────────────────────────────────
+                var request = new EmailSendRequest(
+                    ApiKey:      brevoApiKey!,
+                    SenderName:  brevoConfig!.SenderName,
+                    SenderEmail: brevoConfig.SenderEmail,
+                    ReplyTo:     brevoConfig.ReplyTo,
+                    ToEmail:     toEmail,
+                    ToName:      job.ToName,
+                    Subject:     job.Subject,
+                    HtmlBody:    job.HtmlBody,
+                    LeadId:      job.LeadId,
+                    Tags:        new[] { $"lead:{job.LeadId}" }
+                );
+                messageId = await brevoSvc!.SendEmailAsync(request, ct);
+            }
 
             await queueSvc.MarkSentAsync(job.Id, messageId, ct);
 
-            // Record EmailEvent
             db.Set<EmailEvent>().Add(new EmailEvent
             {
                 EmailSendJobId = job.Id,
@@ -139,7 +158,6 @@ internal sealed class EmailSendBackgroundService : BackgroundService
                 MessageId      = messageId
             });
 
-            // Record LeadActivity
             db.Set<LeadActivity>().Add(new LeadActivity
             {
                 LeadId      = job.LeadId,
@@ -149,18 +167,14 @@ internal sealed class EmailSendBackgroundService : BackgroundService
 
             await db.SaveChangesAsync(ct);
 
-            _logger.LogInformation(
-                "Job {JobId}: email sent to {ToEmail}. MessageId={MessageId}",
+            _logger.LogInformation("Job {JobId}: email sent to {ToEmail}. MessageId={MessageId}",
                 job.Id, toEmail, messageId);
         }
         catch (Exception ex)
         {
             var canRetry = job.AttemptCount + 1 < job.MaxAttempts;
             await queueSvc.MarkFailedAsync(job.Id, ex.Message, canRetry, ct);
-
-            _logger.LogError(
-                ex,
-                "Job {JobId}: failed to send email to {ToEmail}. CanRetry={CanRetry}",
+            _logger.LogError(ex, "Job {JobId}: failed to send to {ToEmail}. CanRetry={CanRetry}",
                 job.Id, toEmail, canRetry);
         }
     }
