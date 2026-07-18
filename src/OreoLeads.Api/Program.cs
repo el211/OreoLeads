@@ -42,21 +42,19 @@ try
         Log.Warning("Ai:EncryptionKey uses the default value — set a strong key in production.");
 
     // ── Serilog ───────────────────────────────────────────────────────────────
+    // File sink removed: in containers, log to stdout only (12-factor).
+    // The WriteTo.File on the Docker volume was causing builder.Build() to hang.
     builder.Host.UseSerilog((ctx, services, config) =>
     {
+        Console.WriteLine("DIAG: Serilog callback invoked");
         config
             .ReadFrom.Configuration(ctx.Configuration)
             .ReadFrom.Services(services)
             .Enrich.FromLogContext()
             .Enrich.WithProperty("Application", "OreoLeads")
             .Enrich.WithProperty("Environment", ctx.HostingEnvironment.EnvironmentName)
-            .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter())
-            .WriteTo.File(
-                new Serilog.Formatting.Json.JsonFormatter(),
-                path: "logs/oreoleads-.log",
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 30,
-                fileSizeLimitBytes: 100_000_000);
+            .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter());
+        Console.WriteLine("DIAG: Serilog callback complete");
     });
 
     // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
