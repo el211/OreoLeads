@@ -54,6 +54,7 @@ services:
       - backend-logs:/app/logs
     networks:
       - oreoleads-internal
+      - coolify  # must share Coolify's network to reach PostgreSQL/Redis resources by hostname
 
   # ── Frontend React / Nginx ─────────────────────────────────────────────────
   frontend:
@@ -75,9 +76,13 @@ volumes:
   backend-logs:
     driver: local
 
-# ── Réseau interne ─────────────────────────────────────────────────────────
-# Le frontend (Nginx) joint le backend via son nom de service "backend:8080".
-# Coolify expose le frontend publiquement et gère le domaine + HTTPS.
+# ── Réseaux ────────────────────────────────────────────────────────────────
+# oreoleads-internal : réseau privé frontend ↔ backend (proxy Nginx).
+# coolify            : réseau géré par Coolify, partagé avec les ressources
+#                      PostgreSQL et Redis. Le backend doit y être attaché
+#                      pour atteindre ces ressources par leur hostname interne.
 networks:
   oreoleads-internal:
     driver: bridge
+  coolify:
+    external: true  # réseau existant créé et géré par Coolify
