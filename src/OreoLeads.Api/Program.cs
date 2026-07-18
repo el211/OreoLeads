@@ -42,33 +42,28 @@ try
         Log.Warning("Ai:EncryptionKey uses the default value — set a strong key in production.");
 
     // ── Serilog ───────────────────────────────────────────────────────────────
-    // File sink removed: in containers, log to stdout only (12-factor).
-    // The WriteTo.File on the Docker volume was causing builder.Build() to hang.
-    builder.Host.UseSerilog((ctx, services, config) =>
+    // Use the 2-parameter overload (no IServiceProvider) to avoid the re-entrancy
+    // deadlock that occurs in .NET 10 when ReadFrom.Services(sp) is called while
+    // the DI container is still being constructed inside builder.Build().
+    // File sink removed: containers should log to stdout only (12-factor).
+    builder.Host.UseSerilog((ctx, config) =>
     {
-        Console.WriteLine("DIAG: Serilog callback invoked");
         config
             .ReadFrom.Configuration(ctx.Configuration)
-            .ReadFrom.Services(services)
             .Enrich.FromLogContext()
             .Enrich.WithProperty("Application", "OreoLeads")
             .Enrich.WithProperty("Environment", ctx.HostingEnvironment.EnvironmentName)
             .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter());
-        Console.WriteLine("DIAG: Serilog callback complete");
     });
 
     // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
-    Log.Information("DIAG: calling AddInfrastructure...");
+    // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
     builder.Services.AddInfrastructure(builder.Configuration);
-    Log.Information("DIAG: AddInfrastructure done.");
 
     // ── Observability (OpenTelemetry) ─────────────────────────────────────────
-    Log.Information("DIAG: calling AddOreoLeadsObservability...");
     builder.Services.AddOreoLeadsObservability(builder.Configuration);
-    Log.Information("DIAG: AddOreoLeadsObservability done.");
 
     // ── Controllers ───────────────────────────────────────────────────────────
-    Log.Information("DIAG: calling AddControllers...");
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
 
@@ -243,7 +238,6 @@ try
     // ─────────────────────────────────────────────────────────────────────────
     Log.Information("DIAG: calling builder.Build()...");
     var app = builder.Build();
-    Log.Information("DIAG: builder.Build() complete.");
 
     // ── Security headers ─────────────────────────────────────────────────────
     app.UseMiddleware<SecurityHeadersMiddleware>();
