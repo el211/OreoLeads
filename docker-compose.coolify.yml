@@ -19,6 +19,7 @@ services:
       # ── Runtime ──────────────────────────────────────────────────────────────
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
+      - AppBaseUrl=https://crm.oreostudios.fr
 
       # ── Base de données (PostgreSQL Coolify existant) ─────────────────────
       # Format Npgsql : Host=<host>;Port=5432;Database=<db>;Username=<user>;Password=<pass>

@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Auth.DTOs;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Infrastructure.Persistence;
+using OreoLeads.Infrastructure.Smtp;
 
 namespace OreoLeads.Infrastructure.Identity;
 
@@ -15,19 +17,27 @@ internal sealed class AuthService : IAuthService
     private readonly JwtService _jwtService;
     private readonly ApplicationDbContext _context;
     private readonly ILogger<AuthService> _logger;
+    private readonly SmtpEmailSender _smtp;
+    private readonly string _appBaseUrl;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         JwtService jwtService,
         ApplicationDbContext context,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        SmtpEmailSender smtp,
+        IConfiguration configuration)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _jwtService = jwtService;
         _context = context;
         _logger = logger;
+        _smtp = smtp;
+        _appBaseUrl = configuration["AppBaseUrl"]
+            ?? configuration["Cors:AllowedOrigins:0"]
+            ?? "https://crm.oreostudios.fr";
     }
 
     public async Task<AuthResponseDto> RegisterAsync(
@@ -154,9 +164,40 @@ internal sealed class AuthService : IAuthService
         var user = await _userManager.FindByEmailAsync(dto.Email);
         if (user == null) return; // Silent — do not reveal user existence
 
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        _logger.LogInformation("Password reset token generated for {Email}: {Token}", dto.Email, token);
-        // TODO: send email via Brevo (next step)
+        var token       = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var encodedToken = Uri.EscapeDataString(token);
+        var encodedEmail = Uri.EscapeDataString(dto.Email);
+        var resetLink   = $"{_appBaseUrl.TrimEnd('/')}/reset-password?token={encodedToken}&email={encodedEmail}";
+
+        _logger.LogInformation("Password reset token generated for {Email}", dto.Email);
+
+        if (!_smtp.IsConfigured)
+        {
+            // No SMTP configured — log the link so the admin can copy it manually
+            _logger.LogWarning(
+                "SMTP not configured. Reset link for {Email}: {Link}", dto.Email, resetLink);
+            return;
+        }
+
+        var html = $"""
+            <div style="font-family:sans-serif;max-width:480px;margin:auto">
+              <h2>Réinitialisation de mot de passe</h2>
+              <p>Bonjour{(user.FirstName != null ? $" {user.FirstName}" : "")},</p>
+              <p>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe :</p>
+              <p style="text-align:center;margin:32px 0">
+                <a href="{resetLink}"
+                   style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+                  Réinitialiser mon mot de passe
+                </a>
+              </p>
+              <p style="color:#6b7280;font-size:12px">
+                Ce lien expire dans 24h. Si vous n'avez pas fait cette demande, ignorez cet email.
+              </p>
+            </div>
+            """;
+
+        await _smtp.SendAsync(dto.Email, user.FirstName, "Réinitialisation de votre mot de passe OreoLeads", html, ct);
+        _logger.LogInformation("Password reset email sent to {Email}", dto.Email);
     }
 
     public async Task ResetPasswordAsync(ResetPasswordDto dto, CancellationToken ct = default)
