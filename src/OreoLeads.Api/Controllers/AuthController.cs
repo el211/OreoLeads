@@ -129,7 +129,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ForgotPassword(
         [FromBody] ForgotPasswordDto dto, CancellationToken ct)
     {
-        await _authService.ForgotPasswordAsync(dto, ct);
+        try { await _authService.ForgotPasswordAsync(dto, ct); } catch { /* swallow — never reveal internals */ }
+        // Always return 200 regardless of outcome (security: don't reveal whether email exists)
         return Ok(new { Message = "If the email exists, a reset link has been sent." });
     }
 

@@ -196,8 +196,17 @@ internal sealed class AuthService : IAuthService
             </div>
             """;
 
-        await _smtp.SendAsync(dto.Email, user.FirstName, "Réinitialisation de votre mot de passe OreoLeads", html, ct);
-        _logger.LogInformation("Password reset email sent to {Email}", dto.Email);
+        try
+        {
+            await _smtp.SendAsync(dto.Email, user.FirstName, "Réinitialisation de votre mot de passe OreoLeads", html, ct);
+            _logger.LogInformation("Password reset email sent to {Email}", dto.Email);
+        }
+        catch (Exception ex)
+        {
+            // Log the failure but do NOT surface it to the caller — leaking SMTP errors is a security risk.
+            // The admin can check logs. The reset link is also logged below for manual use.
+            _logger.LogError(ex, "SMTP failed sending password reset to {Email}. Reset link: {Link}", dto.Email, resetLink);
+        }
     }
 
     public async Task ResetPasswordAsync(ResetPasswordDto dto, CancellationToken ct = default)
