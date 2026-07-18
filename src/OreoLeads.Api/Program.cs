@@ -60,8 +60,10 @@ try
     // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
     builder.Services.AddInfrastructure(builder.Configuration);
 
-    // ── Observability (OpenTelemetry) ─────────────────────────────────────────
-    builder.Services.AddOreoLeadsObservability(builder.Configuration);
+    // OpenTelemetry disabled: WithTracing/WithMetrics providers deadlock against
+    // Serilog's ILoggerFactory replacement inside builder.Build() on .NET 10.
+    // Re-enable once the SDK compatibility issue is resolved.
+    // builder.Services.AddOreoLeadsObservability(builder.Configuration);
 
     // ── Controllers ───────────────────────────────────────────────────────────
     builder.Services.AddControllers();
