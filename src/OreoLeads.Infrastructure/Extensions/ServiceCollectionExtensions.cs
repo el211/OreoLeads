@@ -29,8 +29,11 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        Console.WriteLine("DIAG: AddInfrastructure — start");
+
         // ── Shared encryption (AES-256-GCM) — singleton, key is stable for app lifetime ──
         services.AddSingleton<IEncryptionService, EncryptionService>();
+        Console.WriteLine("DIAG: EncryptionService registered");
 
         // TenantContext — must be scoped so EF query filters get per-request values
         services.AddScoped<TenantContext>();
@@ -42,11 +45,13 @@ public static class ServiceCollectionExtensions
                 configuration.GetConnectionString("DefaultConnection"),
                 b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName));
         });
+        Console.WriteLine("DIAG: EF Core registered");
 
         services.AddScoped<IApplicationDbContext>(provider =>
             provider.GetRequiredService<ApplicationDbContext>());
 
         // ASP.NET Core Identity
+        Console.WriteLine("DIAG: registering Identity...");
         services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         {
             options.Password.RequireDigit = true;
@@ -59,10 +64,12 @@ public static class ServiceCollectionExtensions
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
+        Console.WriteLine("DIAG: Identity registered");
 
         // Redis — registered as a lazy factory so the synchronous Connect() call
         // never blocks DI registration (which runs before builder.Build()).
         var redisConnectionString = configuration.GetConnectionString("Redis");
+        Console.WriteLine($"DIAG: Redis connection string present={!string.IsNullOrEmpty(redisConnectionString)}");
         if (!string.IsNullOrEmpty(redisConnectionString))
         {
             services.AddSingleton<IConnectionMultiplexer>(_ =>
@@ -73,6 +80,7 @@ public static class ServiceCollectionExtensions
                 return ConnectionMultiplexer.Connect(redisConfig);
             });
         }
+        Console.WriteLine("DIAG: Redis registered (lazy)");
 
         // HTTP context accessor (for CurrentUserService, AuditLogger)
         services.AddHttpContextAccessor();

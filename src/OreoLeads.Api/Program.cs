@@ -60,12 +60,17 @@ try
     });
 
     // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
+    Log.Information("DIAG: calling AddInfrastructure...");
     builder.Services.AddInfrastructure(builder.Configuration);
+    Log.Information("DIAG: AddInfrastructure done.");
 
     // ── Observability (OpenTelemetry) ─────────────────────────────────────────
+    Log.Information("DIAG: calling AddOreoLeadsObservability...");
     builder.Services.AddOreoLeadsObservability(builder.Configuration);
+    Log.Information("DIAG: AddOreoLeadsObservability done.");
 
     // ── Controllers ───────────────────────────────────────────────────────────
+    Log.Information("DIAG: calling AddControllers...");
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
 
@@ -238,7 +243,9 @@ try
     builder.Services.AddTransient<BackgroundServicesHealthCheck>();
 
     // ─────────────────────────────────────────────────────────────────────────
+    Log.Information("DIAG: calling builder.Build()...");
     var app = builder.Build();
+    Log.Information("DIAG: builder.Build() complete.");
 
     // ── Security headers ─────────────────────────────────────────────────────
     app.UseMiddleware<SecurityHeadersMiddleware>();
