@@ -70,6 +70,7 @@ services:
         condition: service_healthy
     networks:
       - oreoleads-internal
+      - coolify  # must be on Coolify's network so Traefik can reach it
 
 # ── Volumes ────────────────────────────────────────────────────────────────
 volumes:

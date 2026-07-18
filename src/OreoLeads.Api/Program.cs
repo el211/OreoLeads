@@ -46,7 +46,6 @@ try
     // callback that deadlocks against .NET 10's hosting pipeline.
     // builder.Host.UseSerilog() with callbacks deadlocks (futex_do_wait, 17 threads).
     // Using builder.Logging.AddSerilog() with a pre-built logger has no callbacks.
-    Console.WriteLine("DIAG1: building final Serilog logger");
     Log.Logger = new LoggerConfiguration()
         .ReadFrom.Configuration(builder.Configuration)
         .Enrich.FromLogContext()
@@ -54,15 +53,12 @@ try
         .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
         .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter())
         .CreateLogger();
-    Console.WriteLine("DIAG2: final logger built, calling AddSerilog");
 
     builder.Logging.ClearProviders();
     builder.Logging.AddSerilog(Log.Logger, dispose: true);
-    Console.WriteLine("DIAG3: AddSerilog done, calling AddInfrastructure");
 
     // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
     builder.Services.AddInfrastructure(builder.Configuration);
-    Console.WriteLine("DIAG4: AddInfrastructure done");
 
     // OpenTelemetry disabled: WithTracing/WithMetrics providers deadlock against
     // Serilog's ILoggerFactory replacement inside builder.Build() on .NET 10.
@@ -250,13 +246,10 @@ try
         options.ValidateOnBuild = false;
     });
 
-    Console.WriteLine("DIAG5: calling builder.Build()");
     var app = builder.Build();
-    Console.WriteLine("DIAG6: builder.Build() returned");
 
     // ── Security headers ─────────────────────────────────────────────────────
     app.UseMiddleware<SecurityHeadersMiddleware>();
-    Console.WriteLine("DIAG7: middleware pipeline configured");
 
     // ── HSTS & HTTPS (production only) ───────────────────────────────────────
     if (!app.Environment.IsDevelopment())
@@ -292,7 +285,6 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
-    Console.WriteLine("DIAG8: routes mapped");
 
     // ── Health check endpoints ────────────────────────────────────────────────
     app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
@@ -328,7 +320,6 @@ try
     }).AllowAnonymous();
 
     // ── Startup tasks ─────────────────────────────────────────────────────────
-    Console.WriteLine("DIAG9: starting startup tasks (migrations)");
     using (var scope = app.Services.CreateScope())
     {
         var sp = scope.ServiceProvider;
@@ -336,22 +327,18 @@ try
 
         // Auto-migrate database on startup
         var db = sp.GetRequiredService<ApplicationDbContext>();
-        Console.WriteLine("DIAG10: calling MigrateAsync");
         try
         {
             await db.Database.MigrateAsync();
-            Console.WriteLine("DIAG11: MigrateAsync done");
             logger.LogInformation("Database migrations applied successfully.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"DIAG11-ERR: MigrateAsync failed: {ex.Message}");
             logger.LogError(ex, "Failed to apply database migrations.");
             if (!app.Environment.IsDevelopment()) throw;
         }
 
         // Seed Identity roles
-        Console.WriteLine("DIAG12: seeding roles");
         var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
         foreach (var role in new[] { "Admin", "Manager", "Sales" })
         {
@@ -360,13 +347,10 @@ try
         }
 
         // Seed default AI prompt templates
-        Console.WriteLine("DIAG13: seeding AI prompts");
         var aiConfig = sp.GetRequiredService<IAiConfigurationService>();
         await aiConfig.SeedDefaultPromptsAsync();
-        Console.WriteLine("DIAG14: startup tasks complete");
     }
 
-    Console.WriteLine("DIAG15: calling app.RunAsync()");
     await app.RunAsync();
 }
 catch (Exception ex)
