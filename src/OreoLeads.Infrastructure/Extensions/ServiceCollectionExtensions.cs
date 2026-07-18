@@ -60,14 +60,18 @@ public static class ServiceCollectionExtensions
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
 
-        // Redis (abortConnect=false = ne crash pas si Redis est indisponible)
+        // Redis — registered as a lazy factory so the synchronous Connect() call
+        // never blocks DI registration (which runs before builder.Build()).
         var redisConnectionString = configuration.GetConnectionString("Redis");
         if (!string.IsNullOrEmpty(redisConnectionString))
         {
-            var redisConfig = ConfigurationOptions.Parse(redisConnectionString);
-            redisConfig.AbortOnConnectFail = false;
-            services.AddSingleton<IConnectionMultiplexer>(
-                ConnectionMultiplexer.Connect(redisConfig));
+            services.AddSingleton<IConnectionMultiplexer>(_ =>
+            {
+                var redisConfig = ConfigurationOptions.Parse(redisConnectionString);
+                redisConfig.AbortOnConnectFail = false;
+                redisConfig.ConnectTimeout = 5000;
+                return ConnectionMultiplexer.Connect(redisConfig);
+            });
         }
 
         // HTTP context accessor (for CurrentUserService, AuditLogger)

@@ -214,19 +214,25 @@ try
     });
 
     // ── Health Checks ─────────────────────────────────────────────────────────
-    builder.Services.AddHealthChecks()
+    var redisHcString = builder.Configuration.GetConnectionString("Redis");
+    var healthChecks = builder.Services.AddHealthChecks()
         .AddNpgSql(
             connectionString: builder.Configuration.GetConnectionString("DefaultConnection") ?? "",
             name: "postgresql",
             failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
             tags: ["db", "sql"])
-        .AddRedis(
-            redisConnectionString: builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379",
-            name: "redis",
-            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
-            tags: ["cache"])
         .AddCheck<AutomationHealthCheck>("automation", tags: ["services"])
         .AddCheck<BackgroundServicesHealthCheck>("background-services", tags: ["services"]);
+
+    // Only register the Redis health check when a non-empty connection string is available
+    if (!string.IsNullOrWhiteSpace(redisHcString))
+    {
+        healthChecks.AddRedis(
+            redisConnectionString: redisHcString,
+            name: "redis",
+            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
+            tags: ["cache"]);
+    }
 
     builder.Services.AddTransient<AutomationHealthCheck>();
     builder.Services.AddTransient<BackgroundServicesHealthCheck>();
