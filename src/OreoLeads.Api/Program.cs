@@ -42,21 +42,21 @@ try
         Log.Warning("Ai:EncryptionKey uses the default value — set a strong key in production.");
 
     // ── Serilog ───────────────────────────────────────────────────────────────
-    // Use the 2-parameter overload (no IServiceProvider) to avoid the re-entrancy
-    // deadlock that occurs in .NET 10 when ReadFrom.Services(sp) is called while
-    // the DI container is still being constructed inside builder.Build().
-    // File sink removed: containers should log to stdout only (12-factor).
-    builder.Host.UseSerilog((ctx, config) =>
-    {
-        config
-            .ReadFrom.Configuration(ctx.Configuration)
-            .Enrich.FromLogContext()
-            .Enrich.WithProperty("Application", "OreoLeads")
-            .Enrich.WithProperty("Environment", ctx.HostingEnvironment.EnvironmentName)
-            .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter());
-    });
+    // Pre-create the final logger BEFORE builder.Build() to avoid any deferred
+    // callback that deadlocks against .NET 10's hosting pipeline.
+    // builder.Host.UseSerilog() with callbacks deadlocks (futex_do_wait, 17 threads).
+    // Using builder.Logging.AddSerilog() with a pre-built logger has no callbacks.
+    Log.Logger = new LoggerConfiguration()
+        .ReadFrom.Configuration(builder.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "OreoLeads")
+        .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+        .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter())
+        .CreateLogger();
 
-    // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
+    builder.Logging.ClearProviders();
+    builder.Logging.AddSerilog(Log.Logger, dispose: true);
+
     // ── Infrastructure (EF Core, Redis, Identity, AI...) ─────────────────────
     builder.Services.AddInfrastructure(builder.Configuration);
 
