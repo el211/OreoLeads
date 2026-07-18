@@ -246,8 +246,6 @@ try
         options.ValidateOnBuild = false;
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    Log.Information("DIAG: calling builder.Build()...");
     var app = builder.Build();
 
     // ── Security headers ─────────────────────────────────────────────────────
@@ -271,11 +269,6 @@ try
     });
 
     app.UseMiddleware<CorrelationIdMiddleware>();
-    app.UseSerilogRequestLogging(options =>
-    {
-        options.MessageTemplate =
-            "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
-    });
 
     if (app.Environment.IsDevelopment())
     {
