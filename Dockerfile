@@ -16,15 +16,16 @@ RUN dotnet publish "OreoLeads.Api.csproj" -c Release -o /app/publish --no-restor
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Non-root user for security
-RUN addgroup --system --gid 1001 appgroup && \
-    adduser  --system --uid 1001 --ingroup appgroup appuser
+# mcr.microsoft.com/dotnet/aspnet:10.0 is Debian-based and ships with a
+# built-in non-root user "app" (UID 1000) exposed via $APP_UID.
+# Do NOT use Alpine addgroup/adduser — they do not exist on Debian.
 
-COPY --from=build --chown=appuser:appgroup /app/publish .
+COPY --from=build /app/publish .
 
-RUN mkdir -p /app/logs && chown appuser:appgroup /app/logs
+# Create logs directory and transfer ownership to the built-in app user
+RUN mkdir -p /app/logs && chown -R $APP_UID /app/logs
 
-USER appuser
+USER $APP_UID
 
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
