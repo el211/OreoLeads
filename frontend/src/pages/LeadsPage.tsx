@@ -195,19 +195,21 @@ export function LeadsPage() {
     enableRowSelection: true,
   })
 
-  const handleExportCsv = async () => {
+  const downloadFile = async (path: string, filename: string) => {
     const params = new URLSearchParams()
     if (filter.search) params.set('search', filter.search)
     if (filter.status) params.set('status', filter.status)
-    window.location.href = `/api/leads/export/csv?${params}`
+    const response = await api.get(`${path}?${params}`, { responseType: 'blob' })
+    const url = URL.createObjectURL(new Blob([response.data]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
-  const handleExportExcel = async () => {
-    const params = new URLSearchParams()
-    if (filter.search) params.set('search', filter.search)
-    if (filter.status) params.set('status', filter.status)
-    window.location.href = `/api/leads/export/excel?${params}`
-  }
+  const handleExportCsv = () => downloadFile('/leads/export/csv', 'prospects.csv')
+  const handleExportExcel = () => downloadFile('/leads/export/excel', 'prospects.xlsx')
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

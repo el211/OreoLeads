@@ -30,6 +30,8 @@ import { AnalyticsMonitoringPage } from '@/pages/AnalyticsMonitoringPage'
 import { AuthProvider } from '@/context/AuthContext'
 import PrivateRoute from '@/components/PrivateRoute'
 import LoginPage from '@/pages/LoginPage'
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
+import ResetPasswordPage from '@/pages/ResetPasswordPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +55,8 @@ function App() {
           <Routes>
             {/* Public */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
             {/* Protected */}
             <Route element={
