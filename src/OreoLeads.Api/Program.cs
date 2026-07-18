@@ -235,6 +235,15 @@ try
     builder.Services.AddTransient<AutomationHealthCheck>();
     builder.Services.AddTransient<BackgroundServicesHealthCheck>();
 
+    // Prevent .NET 10 WebApplicationBuilder from eagerly resolving all singletons
+    // (ValidateOnBuild=true in .NET 10 triggers IConnectionMultiplexer factory which
+    // calls ConnectionMultiplexer.Connect() synchronously → deadlock via futex_do_wait)
+    builder.Host.UseDefaultServiceProvider(options =>
+    {
+        options.ValidateScopes = false;
+        options.ValidateOnBuild = false;
+    });
+
     // ─────────────────────────────────────────────────────────────────────────
     Log.Information("DIAG: calling builder.Build()...");
     var app = builder.Build();
