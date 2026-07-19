@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import type { CreateLeadDto, Lead, LeadFilter, LeadNote, LeadSummary, PagedResult } from '@/types/lead'
 
@@ -21,6 +21,7 @@ export function useLeads(filter: LeadFilter) {
       const { data } = await api.get<PagedResult<LeadSummary>>(`/leads?${params}`)
       return data
     },
+    placeholderData: keepPreviousData,
   })
 }
 

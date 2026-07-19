@@ -47,7 +47,7 @@ export function LeadsPage() {
   const [sorting, setSorting] = useState<SortingState>([])
 
 
-  const { data, isLoading } = useLeads(filter)
+  const { data, isLoading, isFetching } = useLeads(filter)
   const deleteLead = useDeleteLead()
 
   // Apply filter on enter or debounce
@@ -316,7 +316,7 @@ export function LeadsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border overflow-hidden">
+      <div className={`rounded-lg border overflow-hidden transition-opacity ${isFetching ? 'opacity-60' : 'opacity-100'}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
@@ -373,18 +373,19 @@ export function LeadsPage() {
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             Page {data.page} sur {data.totalPages} ({data.totalCount} résultats)
+            {isFetching && <span className="ml-2 text-primary">Chargement...</span>}
           </p>
           <div className="flex gap-2">
             <Button
               variant="outline" size="sm"
-              disabled={!data.hasPreviousPage}
+              disabled={!data.hasPreviousPage || isFetching}
               onClick={() => setFilter(prev => ({ ...prev, page: prev.page - 1 }))}
             >
               Précédent
             </Button>
             <Button
               variant="outline" size="sm"
-              disabled={!data.hasNextPage}
+              disabled={!data.hasNextPage || isFetching}
               onClick={() => setFilter(prev => ({ ...prev, page: prev.page + 1 }))}
             >
               Suivant
