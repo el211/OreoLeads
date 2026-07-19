@@ -148,6 +148,25 @@ internal sealed class EmailSendBackgroundService : BackgroundService
 
             await queueSvc.MarkSentAsync(job.Id, messageId, ct);
 
+            // ── Mark the GeneratedEmail as Sent ───────────────────────────────
+            var genEmail = await db.Set<GeneratedEmail>()
+                .FindAsync([job.GeneratedEmailId], ct);
+            if (genEmail is not null)
+            {
+                genEmail.Status = EmailStatus.Sent;
+                genEmail.SetUpdatedAt();
+            }
+
+            // ── Advance Lead status to EmailSent (if not already further along) ─
+            var lead = await db.Set<Lead>().FindAsync([job.LeadId], ct);
+            if (lead is not null && lead.Status is
+                LeadStatus.New or LeadStatus.Qualified or
+                LeadStatus.ReadyToContact or LeadStatus.EmailPrepared)
+            {
+                lead.Status = LeadStatus.EmailSent;
+                lead.SetUpdatedAt();
+            }
+
             db.Set<EmailEvent>().Add(new EmailEvent
             {
                 EmailSendJobId = job.Id,
