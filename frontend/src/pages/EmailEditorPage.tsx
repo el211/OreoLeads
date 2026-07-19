@@ -248,10 +248,10 @@ export function EmailEditorPage() {
         </CardHeader>
         {showPreview && (
           <CardContent>
-            <div className="rounded-md border p-4 bg-white dark:bg-zinc-900">
-              <div className="text-xs text-muted-foreground mb-2">Objet : <span className="font-medium text-foreground">{subject}</span></div>
-              <hr className="mb-3" />
-              <div className="text-sm whitespace-pre-wrap font-sans">{body}</div>
+            <div className="rounded-md border p-4 bg-white text-gray-900">
+              <div className="text-xs text-gray-500 mb-2">Objet : <span className="font-medium text-gray-900">{subject}</span></div>
+              <hr className="mb-3 border-gray-200" />
+              <div className="text-sm whitespace-pre-wrap font-sans text-gray-900">{body}</div>
             </div>
           </CardContent>
         )}
