@@ -83,6 +83,17 @@ export function useUpdateEmailDraft(id: string) {
   })
 }
 
+export function useSendEmail(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => (await api.post(`/emails/${id}/send`, {})).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['email-draft', id] })
+      qc.invalidateQueries({ queryKey: ['email-drafts'] })
+    },
+  })
+}
+
 export function useApproveEmail(id: string) {
   const qc = useQueryClient()
   return useMutation({

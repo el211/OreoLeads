@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import {
   useEmailDraft, useUpdateEmailDraft, useApproveEmail,
-  useRejectEmail, useRegenerateEmail, useRestoreEmailVersion,
+  useRejectEmail, useRegenerateEmail, useRestoreEmailVersion, useSendEmail,
 } from '@/hooks/useEmails'
 import type { EmailDraftStatus } from '@/types/emails'
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,7 @@ export function EmailEditorPage() {
   const reject = useRejectEmail(id!)
   const regenerate = useRegenerateEmail(id!)
   const restoreVersion = useRestoreEmailVersion(id!)
+  const sendEmail = useSendEmail(id!)
 
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
@@ -143,11 +144,29 @@ export function EmailEditorPage() {
         </div>
       </div>
 
-      {/* Approval notice */}
+      {/* Approval notice + Send button */}
       {draft.status === 'Approved' && (
-        <div className="rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-300 flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          Email approuvé — prêt pour l'envoi manuel via Brevo (prochaine étape).
+        <div className="rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-300 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            Email approuvé — cliquez sur Envoyer pour l'expédier via votre boîte OVH.
+          </div>
+          <Button
+            size="sm"
+            className="bg-green-600 hover:bg-green-700 text-white shrink-0"
+            disabled={sendEmail.isPending}
+            onClick={async () => {
+              try {
+                await sendEmail.mutateAsync()
+                alert('Email envoyé avec succès !')
+              } catch {
+                alert('Erreur lors de l\'envoi. Vérifiez que le prospect a un email renseigné.')
+              }
+            }}
+          >
+            {sendEmail.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            Envoyer
+          </Button>
         </div>
       )}
 
