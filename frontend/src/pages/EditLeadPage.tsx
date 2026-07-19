@@ -65,9 +65,13 @@ export function EditLeadPage() {
         siret: lead.siret,
         nafCode: lead.nafCode,
         employeeCount: lead.employeeCount,
-        status: lead.status,
-        priority: lead.priority,
-        score: lead.score,
+        status: lead.status ?? 'New',
+        priority: (lead.priority as unknown) === 0 ? 'Low'
+                : (lead.priority as unknown) === 1 ? 'Medium'
+                : (lead.priority as unknown) === 2 ? 'High'
+                : (lead.priority as unknown) === 3 ? 'Urgent'
+                : lead.priority ?? 'Medium',
+        score: lead.score ?? 0,
         tagIds: lead.tags.map(t => t.id),
       })
       setSelectedTagIds(lead.tags.map(t => t.id))
