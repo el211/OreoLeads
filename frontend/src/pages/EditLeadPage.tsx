@@ -94,8 +94,13 @@ export function EditLeadPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
-    await updateLead.mutateAsync({ ...form, tagIds: selectedTagIds })
-    navigate(`/leads/${id}`)
+    try {
+      await updateLead.mutateAsync({ ...form, tagIds: selectedTagIds })
+      navigate(`/leads/${id}`)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      alert(msg ?? 'Erreur lors de la sauvegarde. Vérifie les champs et réessaie.')
+    }
   }
 
   if (isLoading) return <div className="p-8 text-muted-foreground">Chargement...</div>
@@ -182,7 +187,7 @@ export function EditLeadPage() {
             </div>
             <div className="sm:col-span-2">
               <Label htmlFor="website">Site web</Label>
-              <Input id="website" type="url" value={form.website ?? ''} onChange={set('website')} placeholder="https://" />
+              <Input id="website" type="text" value={form.website ?? ''} onChange={set('website')} placeholder="https://www.example.com" />
             </div>
           </CardContent>
         </Card>
