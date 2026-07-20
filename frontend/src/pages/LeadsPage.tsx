@@ -5,7 +5,7 @@ import {
   flexRender, type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
 import { Plus, Search, Download, Upload, Trash2, ExternalLink } from 'lucide-react'
-import { useLeads, useDeleteLead } from '@/hooks/useLeads'
+import { useLeads, useDeleteLead, useLeadsMeta } from '@/hooks/useLeads'
 import type { LeadFilter, LeadSummary, LeadStatus, LeadPriority } from '@/types/lead'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,10 +44,12 @@ export function LeadsPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<LeadStatus | 'all'>('all')
   const [priority, setPriority] = useState<LeadPriority | 'all'>('all')
+  const [industry, setIndustry] = useState('all')
+  const [legalForm, setLegalForm] = useState('all')
   const [sorting, setSorting] = useState<SortingState>([])
 
-
   const { data, isLoading, isFetching } = useLeads(filter)
+  const { data: meta } = useLeadsMeta()
   const deleteLead = useDeleteLead()
 
   // Apply filter on enter or debounce
@@ -58,6 +60,8 @@ export function LeadsPage() {
       search: overrides.search ?? search,
       status: (status !== 'all' ? status : undefined) ?? overrides.status,
       priority: (priority !== 'all' ? priority : undefined) ?? overrides.priority,
+      industry: (industry !== 'all' ? industry : undefined) ?? overrides.industry,
+      legalForm: (legalForm !== 'all' ? legalForm : undefined) ?? overrides.legalForm,
       page: 1,
     }))
   }
@@ -302,6 +306,36 @@ export function LeadsPage() {
             {PRIORITY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
           </SelectContent>
         </Select>
+
+        {(meta?.legalForms?.length ?? 0) > 0 && (
+          <Select value={legalForm} onValueChange={v => {
+            setLegalForm(v)
+            applyFilter({ legalForm: v !== 'all' ? v : undefined })
+          }}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Forme juridique" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes formes</SelectItem>
+              {meta!.legalForms.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+
+        {(meta?.industries?.length ?? 0) > 0 && (
+          <Select value={industry} onValueChange={v => {
+            setIndustry(v)
+            applyFilter({ industry: v !== 'all' ? v : undefined })
+          }}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Secteur d'activité" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les secteurs</SelectItem>
+              {meta!.industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
 
         <Button variant="outline" size="sm" onClick={() => applyFilter({ search })}>
           Filtrer

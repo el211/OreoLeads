@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
-import type { CreateLeadDto, Lead, LeadFilter, LeadNote, LeadSummary, PagedResult } from '@/types/lead'
+import type { CreateLeadDto, Lead, LeadFilter, LeadNote, LeadsMeta, LeadSummary, PagedResult } from '@/types/lead'
 
 export function useLeads(filter: LeadFilter) {
   return useQuery<PagedResult<LeadSummary>>({
@@ -12,6 +12,7 @@ export function useLeads(filter: LeadFilter) {
       if (filter.industry) params.set('industry', filter.industry)
       if (filter.status) params.set('status', filter.status)
       if (filter.priority) params.set('priority', filter.priority)
+      if (filter.legalForm) params.set('legalForm', filter.legalForm)
       if (filter.hasWebsite !== undefined) params.set('hasWebsite', String(filter.hasWebsite))
       if (filter.hasEmail !== undefined) params.set('hasEmail', String(filter.hasEmail))
       if (filter.sortBy) params.set('sortBy', filter.sortBy)
@@ -22,6 +23,14 @@ export function useLeads(filter: LeadFilter) {
       return data
     },
     placeholderData: keepPreviousData,
+  })
+}
+
+export function useLeadsMeta() {
+  return useQuery<LeadsMeta>({
+    queryKey: ['leads-meta'],
+    queryFn: async () => (await api.get<LeadsMeta>('/leads/meta')).data,
+    staleTime: 5 * 60 * 1000,
   })
 }
 

@@ -101,6 +101,7 @@ export interface LeadFilter {
   search?: string
   city?: string
   industry?: string
+  legalForm?: string
   status?: LeadStatus
   priority?: LeadPriority
   hasWebsite?: boolean
@@ -109,6 +110,11 @@ export interface LeadFilter {
   sortDesc?: boolean
   page: number
   pageSize: number
+}
+
+export interface LeadsMeta {
+  industries: string[]
+  legalForms: string[]
 }
 
 export interface PagedResult<T> {

@@ -122,6 +122,7 @@ public class LeadFilterDto
     public string? Search { get; init; }
     public string? City { get; init; }
     public string? Industry { get; init; }
+    public string? LegalForm { get; init; }
     public LeadStatus? Status { get; init; }
     public LeadPriority? Priority { get; init; }
     public int? MinScore { get; init; }
@@ -133,6 +134,12 @@ public class LeadFilterDto
     public bool SortDesc { get; init; } = false;
     public int Page { get; init; } = 1;
     public int PageSize { get; init; } = 20;
+}
+
+public class LeadsMetaDto
+{
+    public List<string> Industries { get; init; } = new();
+    public List<string> LegalForms { get; init; } = new();
 }
 
 public class ImportLeadDto

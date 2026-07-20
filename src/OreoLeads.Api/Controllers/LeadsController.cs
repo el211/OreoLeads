@@ -275,6 +275,11 @@ public class LeadsController : ControllerBase
         });
     }
 
+    /// <summary>Returns distinct industries and detected legal forms for filter dropdowns</summary>
+    [HttpGet("meta")]
+    public async Task<IActionResult> GetMeta(CancellationToken ct)
+        => Ok(await _leadRepository.GetMetaAsync(ct));
+
     private static string GetStatusLabel(LeadStatus s) => s switch
     {
         LeadStatus.New => "Nouveau",

@@ -124,6 +124,15 @@ public class LeadRepository : ILeadRepository
         if (!string.IsNullOrWhiteSpace(filter.Industry))
             query = query.Where(l => l.Industry != null && l.Industry.ToLower().Contains(filter.Industry.ToLower()));
 
+        if (!string.IsNullOrWhiteSpace(filter.LegalForm))
+        {
+            // Match whole-word: pad both sides with a space so "SA" doesn't match "SARL"
+            var lf = filter.LegalForm.ToUpper();
+            var padded = " " + lf + " ";
+            query = query.Where(l =>
+                (" " + l.CompanyName.ToUpper() + " ").Contains(padded));
+        }
+
         if (filter.Status.HasValue)
             query = query.Where(l => l.Status == filter.Status.Value);
 
@@ -259,4 +268,39 @@ public class LeadRepository : ILeadRepository
         LeadPriority.Urgent => "Urgente",
         _ => priority.ToString()
     };
+
+    // ── Meta ──────────────────────────────────────────────────────────────────
+
+    private static readonly string[] KnownLegalForms =
+    [
+        "SARL", "SAS", "SASU", "EURL", "SA", "EI", "EIRL",
+        "SNC", "SCOP", "SCA", "SCS", "GIE", "ASSOCIATION", "ASSO"
+    ];
+
+    public async Task<LeadsMetaDto> GetMetaAsync(CancellationToken ct = default)
+    {
+        // Distinct non-empty industries ordered by frequency
+        var industries = await _context.Leads
+            .Where(l => l.Industry != null && l.Industry != "")
+            .GroupBy(l => l.Industry!)
+            .OrderByDescending(g => g.Count())
+            .Select(g => g.Key)
+            .Take(200)
+            .ToListAsync(ct);
+
+        // Which known legal forms actually appear in the data?
+        var companyNames = await _context.Leads
+            .Select(l => l.CompanyName.ToUpper())
+            .ToListAsync(ct);
+
+        var legalForms = KnownLegalForms
+            .Where(form =>
+            {
+                var padded = " " + form + " ";
+                return companyNames.Any(n => (" " + n + " ").Contains(padded));
+            })
+            .ToList();
+
+        return new LeadsMetaDto { Industries = industries, LegalForms = legalForms };
+    }
 }

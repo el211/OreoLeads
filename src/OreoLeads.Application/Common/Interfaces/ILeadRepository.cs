@@ -15,4 +15,5 @@ public interface ILeadRepository
     Task<Lead?> GetEntityByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<LeadSummaryDto>> GetByFilterForExportAsync(LeadFilterDto filter, CancellationToken ct = default);
     Task<int> BulkImportAsync(List<Lead> leads, CancellationToken ct = default);
+    Task<LeadsMetaDto> GetMetaAsync(CancellationToken ct = default);
 }
