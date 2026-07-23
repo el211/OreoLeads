@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, History, Download, CheckSquare, Square, ExternalLink, AlertCircle, Loader2 } from 'lucide-react'
+import { Search, History, Download, CheckSquare, Square, ExternalLink, AlertCircle, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
 import { useCompanySearch, useSearchImport } from '@/hooks/useSearch'
 import type { CompanySearchRequest, CompanySearchResponse, CompanySearchResult } from '@/types/search'
 import { Button } from '@/components/ui/button'
@@ -12,10 +12,13 @@ import { Badge } from '@/components/ui/badge'
 const DEFAULT_REQUEST: CompanySearchRequest = {
   activeOnly: true,
   maxResults: 50,
+  includeIndividualEntrepreneurs: true,
+  includeNoEmployees: true,
 }
 
 export function SearchPage() {
   const [form, setForm] = useState<CompanySearchRequest>(DEFAULT_REQUEST)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [response, setResponse] = useState<CompanySearchResponse | null>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [importResult, setImportResult] = useState<{ newLeads: number; updatedLeads: number; duplicates: number; errors: number } | null>(null)
@@ -123,6 +126,68 @@ export function SearchPage() {
               <Label htmlFor="industry">Secteur d'activité</Label>
               <Input id="industry" value={form.industry ?? ''} onChange={set('industry')} placeholder="Restauration..." />
             </div>
+
+            {/* Filtres avancés (EI, sans salarié, dates de création) */}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(s => !s)}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+              >
+                {showAdvanced ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                Filtres avancés
+              </button>
+            </div>
+
+            {showAdvanced && (
+              <div className="sm:col-span-2 lg:col-span-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 rounded-lg border bg-muted/30 p-4">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.includeIndividualEntrepreneurs ?? true}
+                    onChange={e => setForm(p => ({ ...p, includeIndividualEntrepreneurs: e.target.checked }))}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  Inclure les entrepreneurs individuels
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.onlyIndividualEntrepreneurs ?? false}
+                    onChange={e => setForm(p => ({ ...p, onlyIndividualEntrepreneurs: e.target.checked }))}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  Uniquement les entrepreneurs individuels
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.includeNoEmployees ?? true}
+                    onChange={e => setForm(p => ({ ...p, includeNoEmployees: e.target.checked }))}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  Inclure les établissements sans salarié
+                </label>
+                <div>
+                  <Label htmlFor="createdAfter">Créée après</Label>
+                  <Input
+                    id="createdAfter"
+                    type="date"
+                    value={form.createdAfter ?? ''}
+                    onChange={e => setForm(p => ({ ...p, createdAfter: e.target.value || undefined }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="createdBefore">Créée avant</Label>
+                  <Input
+                    id="createdBefore"
+                    type="date"
+                    value={form.createdBefore ?? ''}
+                    onChange={e => setForm(p => ({ ...p, createdBefore: e.target.value || undefined }))}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-between gap-4 pt-2">
               <div className="flex items-center gap-4">
@@ -261,6 +326,9 @@ function SearchResultCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium truncate">{company.companyName}</span>
+          {company.isIndividualEntrepreneur && (
+            <Badge variant="outline" className="text-xs border-primary/40 text-primary">EI</Badge>
+          )}
           {company.nafCode && (
             <Badge variant="outline" className="text-xs font-mono">{company.nafCode}</Badge>
           )}
@@ -269,12 +337,18 @@ function SearchResultCard({
               Déjà importé
             </Badge>
           )}
+          {company.isNonDiffusible && (
+            <Badge variant="secondary" className="text-xs">Non diffusible</Badge>
+          )}
           {!company.isActive && (
             <Badge variant="destructive" className="text-xs">Inactive</Badge>
           )}
         </div>
 
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+          {company.tradeName && company.tradeName !== company.companyName && (
+            <span className="italic">{company.tradeName}</span>
+          )}
           {company.industry && <span>{company.industry}</span>}
           {(company.city || company.postalCode) && (
             <span>{[company.postalCode, company.city].filter(Boolean).join(' ')}</span>

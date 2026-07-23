@@ -8,6 +8,13 @@ export interface CompanySearchRequest {
   nafCode?: string
   activeOnly: boolean
   maxResults: number
+  // Filtres entrepreneurs individuels / petites structures
+  includeIndividualEntrepreneurs?: boolean
+  onlyIndividualEntrepreneurs?: boolean
+  includeNoEmployees?: boolean
+  natureJuridiqueCodes?: string[]
+  createdAfter?: string
+  createdBefore?: string
 }
 
 export interface CompanySearchResult {
@@ -31,6 +38,14 @@ export interface CompanySearchResult {
   provider: string
   alreadyExists: boolean
   existingLeadId?: string
+  // Entrepreneurs individuels
+  tradeName?: string
+  isIndividualEntrepreneur?: boolean
+  entrepreneurFirstName?: string
+  entrepreneurLastName?: string
+  natureJuridique?: string
+  creationDate?: string
+  isNonDiffusible?: boolean
 }
 
 export interface CompanySearchResponse {

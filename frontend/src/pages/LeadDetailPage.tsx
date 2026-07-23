@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { EnrichmentPanel } from '@/components/enrichment/EnrichmentPanel'
 import { StatusBadge, PriorityBadge } from '@/components/ui/status-badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -185,6 +186,8 @@ export function LeadDetailPage() {
               </CardContent>
             </Card>
           </div>
+
+          <EnrichmentPanel leadId={id!} />
 
           <div className="text-xs text-muted-foreground">
             Créé le {format(new Date(lead.createdAt), 'dd MMMM yyyy à HH:mm', { locale: fr })}
