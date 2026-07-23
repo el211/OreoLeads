@@ -26,6 +26,11 @@ public class WebsiteAnalysis : BaseEntity
     public bool HasQuoteForm { get; set; }
     public bool HasBookingSystem { get; set; }
     public bool HasChatWidget { get; set; }
+    public bool HasNewsletterForm { get; set; }
+    public bool HasWhatsApp { get; set; }
+    public bool HasMessenger { get; set; }
+    public string? BookingProvider { get; set; }
+    public bool AnalyzedWithBrowser { get; set; }
 
     // Informations visibles
     public bool HasEmailVisible { get; set; }

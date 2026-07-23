@@ -11,6 +11,15 @@ public class CompanySearchRequestDto
     public string? NafCode { get; set; }
     public bool ActiveOnly { get; set; } = true;
     public int MaxResults { get; set; } = 50;
+
+    // ── Filtres entrepreneurs individuels / petites structures ───────────────
+    public bool IncludeIndividualEntrepreneurs { get; set; } = true;
+    public bool OnlyIndividualEntrepreneurs { get; set; }
+    public bool IncludeNoEmployees { get; set; } = true;
+    public bool IncludeSecondaryEstablishments { get; set; }
+    public List<string>? NatureJuridiqueCodes { get; set; }
+    public DateOnly? CreatedAfter { get; set; }
+    public DateOnly? CreatedBefore { get; set; }
 }
 
 public class CompanySearchResultDto
@@ -35,6 +44,15 @@ public class CompanySearchResultDto
     public string Provider { get; set; } = string.Empty;
     public bool AlreadyExists { get; set; }
     public Guid? ExistingLeadId { get; set; }
+
+    // ── Entrepreneurs individuels ─────────────────────────────────────────────
+    public string? TradeName { get; set; }
+    public bool IsIndividualEntrepreneur { get; set; }
+    public string? EntrepreneurFirstName { get; set; }
+    public string? EntrepreneurLastName { get; set; }
+    public string? NatureJuridique { get; set; }
+    public DateOnly? CreationDate { get; set; }
+    public bool IsNonDiffusible { get; set; }
 }
 
 public class CompanySearchResponseDto

@@ -22,10 +22,19 @@ WORKDIR /app
 
 COPY --from=build /app/publish .
 
-# Install curl (health check), Kerberos libs (Npgsql), create log dir
+# Chromium (Playwright) est installé dans un chemin stable, lisible par l'utilisateur non-root.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Install curl (health check), Kerberos libs (Npgsql), Playwright Chromium + deps, create log dir.
+# Le CLI Playwright livré dans la sortie de publication (.playwright) installe Chromium
+# et ses dépendances système via apt (--with-deps). En cas d'échec, l'application bascule
+# automatiquement sur le fetch HTTP (voir CompositePageFetcher).
 RUN apt-get update -qq \
     && apt-get install -y --no-install-recommends curl libgssapi-krb5-2 \
+    && ( ./.playwright/node/linux-x64/node ./.playwright/package/cli.js install --with-deps chromium \
+         || echo "AVERTISSEMENT : installation de Chromium échouée — rendu JavaScript désactivé" ) \
     && rm -rf /var/lib/apt/lists/* \
+    && chmod -R a+rX /ms-playwright 2>/dev/null || true \
     && mkdir -p /app/logs && chown -R $APP_UID /app/logs
 
 USER $APP_UID

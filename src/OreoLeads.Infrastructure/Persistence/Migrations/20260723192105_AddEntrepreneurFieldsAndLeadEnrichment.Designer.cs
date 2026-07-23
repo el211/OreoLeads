@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using OreoLeads.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using OreoLeads.Infrastructure.Persistence;
 namespace OreoLeads.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260723192105_AddEntrepreneurFieldsAndLeadEnrichment")]
+    partial class AddEntrepreneurFieldsAndLeadEnrichment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2658,12 +2661,6 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<bool>("AnalyzedWithBrowser")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("BookingProvider")
-                        .HasColumnType("text");
-
                     b.Property<int>("BusinessScore")
                         .HasColumnType("integer");
 
@@ -2695,12 +2692,6 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.Property<bool>("HasLegalNotice")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("HasMessenger")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("HasNewsletterForm")
-                        .HasColumnType("boolean");
-
                     b.Property<bool>("HasPhoneVisible")
                         .HasColumnType("boolean");
 
@@ -2711,9 +2702,6 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("HasViewport")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("HasWhatsApp")
                         .HasColumnType("boolean");
 
                     b.Property<int>("HttpStatus")

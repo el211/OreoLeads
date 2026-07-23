@@ -58,6 +58,12 @@ services:
       - Brevo__ApiKey=${BREVO_API_KEY:-}
       - Airtable__AccessToken=${AIRTABLE_TOKEN:-}
 
+      # ── Enrichissement (découverte site/e-mail + Playwright) ──────────────
+      - BraveSearch__ApiKey=${BRAVE_SEARCH_API_KEY:-}
+      - Enrichment__AutoEnrichOnImport=${ENRICHMENT_AUTO:-true}
+      - Enrichment__AutoApplyThreshold=${ENRICHMENT_THRESHOLD:-0.8}
+      - Playwright__Enabled=${PLAYWRIGHT_ENABLED:-true}
+
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health/live || exit 1"]
       interval: 30s

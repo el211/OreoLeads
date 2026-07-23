@@ -2,10 +2,12 @@ using System.Diagnostics;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Search.DTOs;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Domain.Enums;
+using OreoLeads.Infrastructure.Enrichment;
 using OreoLeads.Infrastructure.Persistence;
 
 namespace OreoLeads.Infrastructure.Services;
@@ -16,19 +18,27 @@ public class SearchService : ISearchService
     private readonly ISearchRepository _searchRepository;
     private readonly ApplicationDbContext _context;
     private readonly ILogger<SearchService> _logger;
+    private readonly IEnrichmentQueueService? _enrichmentQueue;
+    private readonly EnrichmentSettings _enrichmentSettings;
 
-    private const int PageSize = 20;
+    // L'API recherche-entreprises renvoie 25 résultats bruts par page ;
+    // MaxApiPages borne les recherches fortement filtrées côté client.
+    private const int MaxApiPages = 10;
 
     public SearchService(
         IEnumerable<ILeadSource> sources,
         ISearchRepository searchRepository,
         ApplicationDbContext context,
-        ILogger<SearchService> logger)
+        ILogger<SearchService> logger,
+        IEnrichmentQueueService? enrichmentQueue = null,
+        IOptions<EnrichmentSettings>? enrichmentSettings = null)
     {
         _sources = sources;
         _searchRepository = searchRepository;
         _context = context;
         _logger = logger;
+        _enrichmentQueue = enrichmentQueue;
+        _enrichmentSettings = enrichmentSettings?.Value ?? new EnrichmentSettings();
     }
 
     public async Task<CompanySearchResponseDto> SearchAsync(
@@ -41,16 +51,16 @@ public class SearchService : ISearchService
         var totalFound = 0;
         var page = 1;
 
-        // Paginate until we hit MaxResults or the source runs out
-        while (allResults.Count < request.MaxResults)
+        // Paginate until we hit MaxResults or the source runs out.
+        // rawPageCount (avant filtres côté client) indique s'il reste des pages :
+        // une page filtrée peut être courte alors que l'API a encore des résultats.
+        while (allResults.Count < request.MaxResults && page <= MaxApiPages)
         {
-            var (results, total) = await source.SearchAsync(request, page, ct);
+            var (results, total, rawPageCount) = await source.SearchAsync(request, page, ct);
             totalFound = total;
 
-            if (results.Count == 0) break;
-
             allResults.AddRange(results);
-            if (allResults.Count >= request.MaxResults || results.Count < PageSize) break;
+            if (rawPageCount < source.PageSize) break;
 
             page++;
         }
@@ -193,6 +203,10 @@ public class SearchService : ISearchService
                     var lead = new Lead
                     {
                         CompanyName = company.CompanyName,
+                        TradeName = company.TradeName,
+                        IsIndividualEntrepreneur = company.IsIndividualEntrepreneur,
+                        EntrepreneurFirstName = company.EntrepreneurFirstName,
+                        EntrepreneurLastName = company.EntrepreneurLastName,
                         Industry = company.Industry,
                         Siren = company.Siren,
                         Siret = company.Siret,
@@ -234,6 +248,22 @@ public class SearchService : ISearchService
         }
 
         await _context.SaveChangesAsync(ct);
+
+        // Enrichissement automatique des nouveaux leads (non bloquant pour l'import)
+        if (_enrichmentSettings.AutoEnrichOnImport && _enrichmentQueue is not null)
+        {
+            foreach (var newLeadId in result.NewLeadIds)
+            {
+                try
+                {
+                    await _enrichmentQueue.QueueAsync(newLeadId, organizationId: null, force: false, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Impossible de mettre en file l'enrichissement du lead {LeadId}", newLeadId);
+                }
+            }
+        }
 
         if (request.SearchId.HasValue)
         {
@@ -307,6 +337,18 @@ public class SearchService : ISearchService
 
         if (existing.EmployeeCount == null && company.EmployeeCount.HasValue)
         { existing.EmployeeCount = company.EmployeeCount; enriched = true; }
+
+        if (string.IsNullOrEmpty(existing.TradeName) && !string.IsNullOrEmpty(company.TradeName))
+        { existing.TradeName = company.TradeName; enriched = true; }
+
+        if (string.IsNullOrEmpty(existing.EntrepreneurFirstName) && !string.IsNullOrEmpty(company.EntrepreneurFirstName))
+        { existing.EntrepreneurFirstName = company.EntrepreneurFirstName; enriched = true; }
+
+        if (string.IsNullOrEmpty(existing.EntrepreneurLastName) && !string.IsNullOrEmpty(company.EntrepreneurLastName))
+        { existing.EntrepreneurLastName = company.EntrepreneurLastName; enriched = true; }
+
+        if (!existing.IsIndividualEntrepreneur && company.IsIndividualEntrepreneur)
+        { existing.IsIndividualEntrepreneur = true; enriched = true; }
 
         return enriched;
     }

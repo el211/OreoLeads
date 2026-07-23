@@ -88,6 +88,75 @@ public class HtmlAnalyzerTests
         HtmlAnalyzer.HasContactForm(html).Should().BeFalse();
     }
 
+    [Fact]
+    public void HasContactForm_True_WhenEmbeddedTypeform()
+    {
+        var html = @"<iframe src=""https://xyz.typeform.com/to/abc123""></iframe>";
+        HtmlAnalyzer.HasContactForm(html).Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasContactForm_True_WhenGoogleFormEmbedded()
+    {
+        var html = @"<iframe src=""https://docs.google.com/forms/d/e/xyz/viewform""></iframe>";
+        HtmlAnalyzer.HasContactForm(html).Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasContactForm_True_WhenContactForm7Markup()
+    {
+        var html = @"<div class=""wpcf7"" id=""wpcf7-f123-p45-o1""><div class=""wpcf7-form""></div></div>";
+        HtmlAnalyzer.HasContactForm(html).Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasContactForm_True_WhenEmailAndTextareaWithoutMatchedForm()
+    {
+        // HTML mal formé ou rendu JS : pas de couple <form>…</form> appariable
+        var html = @"<div><input type=""email"" placeholder=""Votre email"" /><textarea placeholder=""Votre message""></textarea><button>Envoyer</button></div>";
+        HtmlAnalyzer.HasContactForm(html).Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasContactForm_False_WhenNewsletterOnly()
+    {
+        // Email seul (newsletter) sans textarea ne doit pas compter
+        var html = @"<form action=""/newsletter""><input type=""text"" name=""nl"" /></form><input type=""text"" />";
+        HtmlAnalyzer.HasContactForm(html).Should().BeFalse();
+    }
+
+    // ── FindContactPageUrls ───────────────────────────────────────────────────
+
+    [Fact]
+    public void FindContactPageUrls_FindsRelativeAndAbsoluteInternalLinks()
+    {
+        var html = @"<a href=""/contact"">Contact</a>
+                     <a href=""https://example.com/demande-de-devis"">Devis</a>
+                     <a href=""https://other-site.com/contact"">Externe</a>
+                     <a href=""/blog"">Blog</a>";
+        var urls = HtmlAnalyzer.FindContactPageUrls(html, new Uri("https://example.com/"));
+
+        urls.Should().Contain("https://example.com/contact");
+        urls.Should().Contain("https://example.com/demande-de-devis");
+        urls.Should().NotContain(u => u.Contains("other-site.com"));
+        urls.Should().NotContain(u => u.Contains("/blog"));
+    }
+
+    [Fact]
+    public void FindContactPageUrls_IgnoresMailtoAndTel()
+    {
+        var html = @"<a href=""mailto:contact@example.com"">Email</a><a href=""tel:0123456789"">Tel</a>";
+        HtmlAnalyzer.FindContactPageUrls(html, new Uri("https://example.com/")).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FindContactPageUrls_DeduplicatesUrls()
+    {
+        var html = @"<a href=""/contact"">Contact</a><a href=""/contact#form"">Contact bas de page</a><a href=""/CONTACT"">Contact menu</a>";
+        var urls = HtmlAnalyzer.FindContactPageUrls(html, new Uri("https://example.com/"));
+        urls.Should().HaveCount(1);
+    }
+
     // ── HasQuoteForm ──────────────────────────────────────────────────────────
 
     [Fact]
@@ -175,5 +244,74 @@ public class HtmlAnalyzerTests
     {
         var html = "<p>Notre adresse : 12 rue des Fleurs, 75001 Paris</p>";
         HtmlAnalyzer.HasAddressVisible(html).Should().BeTrue();
+    }
+
+    // ── Newsletter vs contact ─────────────────────────────────────────────────
+
+    [Fact]
+    public void HasNewsletterForm_True_ForNewsletterEmailForm()
+    {
+        var html = @"<form><input type=""email"" placeholder=""Votre email""><button>S'inscrire à la newsletter</button></form>";
+        HtmlAnalyzer.HasNewsletterForm(html).Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasContactForm_False_ForNewsletterOnlyForm()
+    {
+        var html = @"<form><input type=""email"" placeholder=""Votre email""><button>Abonnez-vous à notre newsletter</button></form>";
+        HtmlAnalyzer.HasContactForm(html).Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasContactForm_True_ForRealContactForm_NotNewsletter()
+    {
+        var html = @"<form><input type=""email""><textarea name=""message""></textarea><button>Envoyer</button></form>";
+        HtmlAnalyzer.HasNewsletterForm(html).Should().BeFalse();
+        HtmlAnalyzer.HasContactForm(html).Should().BeTrue();
+    }
+
+    // ── Booking provider ──────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("<a href=\"https://www.planity.com/mon-salon\">Réserver</a>", "Planity")]
+    [InlineData("<iframe src=\"https://widget.treatwell.fr/x\"></iframe>", "Treatwell")]
+    [InlineData("<script src=\"https://assets.calendly.com/x.js\"></script>", "Calendly")]
+    [InlineData("<div>Rendez-vous sur doctolib</div>", "Doctolib")]
+    public void DetectBookingProvider_ReturnsName(string html, string expected)
+    {
+        HtmlAnalyzer.DetectBookingProvider(html).Should().Be(expected);
+    }
+
+    [Fact]
+    public void DetectBookingProvider_Null_WhenNoneKnown()
+    {
+        HtmlAnalyzer.DetectBookingProvider("<p>Réservez par téléphone</p>").Should().BeNull();
+    }
+
+    // ── WhatsApp / Messenger ──────────────────────────────────────────────────
+
+    [Fact]
+    public void HasWhatsAppLink_True_ForWaMe()
+    {
+        HtmlAnalyzer.HasWhatsAppLink(@"<a href=""https://wa.me/33612345678"">WhatsApp</a>").Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasMessengerLink_True_ForMeLink()
+    {
+        HtmlAnalyzer.HasMessengerLink(@"<a href=""https://m.me/mapage"">Messenger</a>").Should().BeTrue();
+    }
+
+    // ── FindLegalPageUrls ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void FindLegalPageUrls_FindsMentionsAndAbout()
+    {
+        var html = @"<a href=""/mentions-legales"">ML</a><a href=""/a-propos"">À propos</a><a href=""/blog"">Blog</a>";
+        var urls = HtmlAnalyzer.FindLegalPageUrls(html, new Uri("https://example.fr/"));
+
+        urls.Should().Contain("https://example.fr/mentions-legales");
+        urls.Should().Contain("https://example.fr/a-propos");
+        urls.Should().NotContain(u => u.Contains("/blog"));
     }
 }

@@ -9,7 +9,15 @@ namespace OreoLeads.Application.Common.Interfaces;
 public interface ILeadSource
 {
     string ProviderName { get; }
-    Task<(List<CompanySearchResultDto> Results, int TotalFound)> SearchAsync(
+
+    /// <summary>Taille de page brute du fournisseur (utilisée pour la pagination).</summary>
+    int PageSize { get; }
+
+    /// <summary>
+    /// RawPageCount = nombre de résultats bruts de la page API avant filtres
+    /// côté client — permet au SearchService de savoir s'il reste des pages.
+    /// </summary>
+    Task<(List<CompanySearchResultDto> Results, int TotalFound, int RawPageCount)> SearchAsync(
         CompanySearchRequestDto request,
         int page = 1,
         CancellationToken ct = default);

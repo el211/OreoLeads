@@ -13,6 +13,8 @@ using OreoLeads.Infrastructure.Automation;
 using OreoLeads.Infrastructure.Automation.Actions;
 using OreoLeads.Infrastructure.Automation.BackgroundServices;
 using OreoLeads.Infrastructure.Brevo;
+using OreoLeads.Infrastructure.Enrichment;
+using OreoLeads.Infrastructure.Fetching;
 using OreoLeads.Infrastructure.Identity;
 using OreoLeads.Infrastructure.Persistence;
 using OreoLeads.Infrastructure.Security;
@@ -104,6 +106,26 @@ public static class ServiceCollectionExtensions
             client.DefaultRequestHeaders.Add("User-Agent", "OreoLeads/1.0");
         });
         services.AddScoped<ILeadSource, OpenDataGouvSource>();
+
+        // ── Enrichissement (découverte site/e-mail + Playwright) ────────────────
+        services.Configure<BraveSearchSettings>(configuration.GetSection(BraveSearchSettings.Section));
+        services.Configure<EnrichmentSettings>(configuration.GetSection(EnrichmentSettings.Section));
+        services.Configure<PlaywrightSettings>(configuration.GetSection(PlaywrightSettings.Section));
+
+        services.AddHttpClient(nameof(BraveSearchClient), c => c.Timeout = TimeSpan.FromSeconds(20));
+        services.AddSingleton<IBraveSearchClient, BraveSearchClient>();
+
+        // Fetchers : Playwright + HTTP en singletons, exposés via CompositePageFetcher
+        services.AddSingleton<HttpPageFetcher>();
+        services.AddSingleton<PlaywrightPageFetcher>();
+        services.AddSingleton<IPageFetcher, CompositePageFetcher>();
+
+        services.AddScoped<IWebsiteDiscoveryService, WebsiteDiscoveryService>();
+        services.AddScoped<IEmailDiscoveryService, EmailDiscoveryService>();
+        services.AddScoped<ICompanyEnrichmentService, CompanyEnrichmentService>();
+        services.AddScoped<IEnrichmentQueueService, EnrichmentQueueService>();
+        services.AddScoped<IEnrichmentService, EnrichmentService>();
+        services.AddHostedService<EnrichmentBackgroundService>();
 
         // ── AI ────────────────────────────────────────────────────────────────
         services.AddScoped<IAiConfigurationService, AiConfigurationService>();

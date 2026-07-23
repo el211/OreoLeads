@@ -39,6 +39,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<BrevoConfiguration> BrevoConfigurations => Set<BrevoConfiguration>();
     public DbSet<EmailSendJob> EmailSendJobs => Set<EmailSendJob>();
+    public DbSet<LeadEnrichment> LeadEnrichments => Set<LeadEnrichment>();
     public DbSet<EmailEvent> EmailEvents => Set<EmailEvent>();
     public DbSet<UnsubscribeRecord> UnsubscribeRecords => Set<UnsubscribeRecord>();
     public DbSet<AirtableConfiguration> AirtableConfigurations => Set<AirtableConfiguration>();
@@ -86,6 +87,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
         modelBuilder.Entity<SearchQuery>()
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+        modelBuilder.Entity<LeadEnrichment>()
+            .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+
+        modelBuilder.Entity<LeadEnrichment>(b =>
+        {
+            b.HasOne(e => e.Lead)
+                .WithMany(l => l.Enrichments)
+                .HasForeignKey(e => e.LeadId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(e => new { e.Status, e.ScheduledAt });
+            b.HasIndex(e => e.LeadId);
+        });
         modelBuilder.Entity<AiConfiguration>()
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
         modelBuilder.Entity<PromptTemplate>()

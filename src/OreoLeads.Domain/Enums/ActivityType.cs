@@ -15,5 +15,6 @@ public enum ActivityType
     NoteDeleted,
     FollowUpCreated,
     Import,
-    Export
+    Export,
+    Enriched
 }

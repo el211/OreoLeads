@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Net;
-using System.Net.Security;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OreoLeads.Application.Common.Interfaces;
@@ -13,17 +10,17 @@ namespace OreoLeads.Infrastructure.Services;
 
 public class WebsiteAnalyzerService : IWebsiteAnalyzerService
 {
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IPageFetcher _fetcher;
     private readonly ILogger<WebsiteAnalyzerService> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts =
         new() { PropertyNameCaseInsensitive = true };
 
     public WebsiteAnalyzerService(
-        IHttpClientFactory httpClientFactory,
+        IPageFetcher fetcher,
         ILogger<WebsiteAnalyzerService> logger)
     {
-        _httpClientFactory = httpClientFactory;
+        _fetcher = fetcher;
         _logger = logger;
     }
 
@@ -42,16 +39,16 @@ public class WebsiteAnalyzerService : IWebsiteAnalyzerService
             LastAnalysis = DateTime.UtcNow,
         };
 
-        var sw = Stopwatch.StartNew();
-        var (html, httpResult) = await FetchPageAsync(url, ct);
-        sw.Stop();
+        var page = await _fetcher.FetchAsync(url, ct);
+        var html = page.Html;
 
-        analysis.HttpStatus = httpResult.StatusCode;
-        analysis.ResponseTimeMs = (int)sw.ElapsedMilliseconds;
+        analysis.HttpStatus = page.StatusCode;
+        analysis.ResponseTimeMs = page.ResponseTimeMs;
         analysis.UsesHttps = url.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
-        analysis.CertificateValid = httpResult.CertificateValid;
-        analysis.RedirectCount = httpResult.RedirectCount;
-        analysis.AnalysisError = httpResult.Error;
+        analysis.CertificateValid = page.CertificateValid;
+        analysis.RedirectCount = page.RedirectCount;
+        analysis.AnalysisError = page.Error;
+        analysis.AnalyzedWithBrowser = page.UsedBrowser;
 
         if (!string.IsNullOrEmpty(html))
         {
@@ -62,6 +59,10 @@ public class WebsiteAnalyzerService : IWebsiteAnalyzerService
             analysis.HasQuoteForm = HtmlAnalyzer.HasQuoteForm(html);
             analysis.HasBookingSystem = HtmlAnalyzer.HasBookingSystem(html);
             analysis.HasChatWidget = HtmlAnalyzer.HasChatWidget(html);
+            analysis.HasNewsletterForm = HtmlAnalyzer.HasNewsletterForm(html);
+            analysis.HasWhatsApp = HtmlAnalyzer.HasWhatsAppLink(html);
+            analysis.HasMessenger = HtmlAnalyzer.HasMessengerLink(html);
+            analysis.BookingProvider = HtmlAnalyzer.DetectBookingProvider(html);
             analysis.HasEmailVisible = HtmlAnalyzer.HasEmailVisible(html);
             analysis.HasPhoneVisible = HtmlAnalyzer.HasPhoneVisible(html);
             analysis.HasAddressVisible = HtmlAnalyzer.HasAddressVisible(html);
@@ -71,6 +72,11 @@ public class WebsiteAnalyzerService : IWebsiteAnalyzerService
             var technologies = TechnologyDetector.Detect(html);
             analysis.TechnologiesDetected = JsonSerializer.Serialize(technologies);
             analysis.CmsDetected = TechnologyDetector.DetectCms(html);
+
+            // La page d'accueil ne contient souvent pas le formulaire :
+            // analyser aussi la page contact/devis/rendez-vous si elle existe
+            if (!analysis.HasContactForm)
+                await AnalyzeContactPagesAsync(analysis, html, url, ct);
         }
 
         return Recalculate(analysis);
@@ -137,77 +143,33 @@ public class WebsiteAnalyzerService : IWebsiteAnalyzerService
         };
     }
 
-    // ── Fetch ─────────────────────────────────────────────────────────────────
-
-    private async Task<(string? Html, FetchResult Result)> FetchPageAsync(
-        string url, CancellationToken ct)
+    private async Task AnalyzeContactPagesAsync(
+        WebsiteAnalysis analysis, string homeHtml, string baseUrl, CancellationToken ct)
     {
-        // Tentative 1 : client avec validation SSL
-        var (html, result) = await TryFetchAsync(url, validateSsl: true, ct);
-        if (result.Error != null && url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri)) return;
+
+        foreach (var contactUrl in HtmlAnalyzer.FindContactPageUrls(homeHtml, baseUri).Take(2))
         {
-            // SSL invalide → réessai sans validation pour quand même analyser le HTML
-            _logger.LogWarning("SSL invalide pour {Url}, réessai sans validation", url);
-            var (html2, result2) = await TryFetchAsync(url, validateSsl: false, ct);
-            return (html2, result2 with { CertificateValid = false });
-        }
-        return (html, result);
-    }
-
-    private async Task<(string? Html, FetchResult Result)> TryFetchAsync(
-        string url, bool validateSsl, CancellationToken ct)
-    {
-        var handler = new HttpClientHandler
-        {
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 5,
-            ServerCertificateCustomValidationCallback =
-                validateSsl ? null : (_, _, _, _) => true,
-        };
-
-        using var client = new HttpClient(handler)
-        {
-            Timeout = TimeSpan.FromSeconds(15),
-        };
-        client.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (compatible; OreoLeads/1.0; +https://oreostudios.fr)");
-        client.DefaultRequestHeaders.Add("Accept-Language", "fr-FR,fr;q=0.9");
-
-        try
-        {
-            var response = await client.GetAsync(url,
-                HttpCompletionOption.ResponseContentRead, ct);
-
-            var finalUrl = response.RequestMessage?.RequestUri?.ToString() ?? url;
-            var redirected = !string.Equals(url, finalUrl, StringComparison.OrdinalIgnoreCase);
-
-            var html = string.Empty;
-            var contentType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
-            if (contentType.Contains("html", StringComparison.OrdinalIgnoreCase))
+            try
             {
-                html = await response.Content.ReadAsStringAsync(ct);
-            }
+                await SsrfGuard.ValidateAsync(contactUrl, ct);
+                var contactPage = await _fetcher.FetchAsync(contactUrl, ct);
+                var contactHtml = contactPage.Html;
+                if (string.IsNullOrEmpty(contactHtml)) continue;
 
-            return (html, new FetchResult(
-                StatusCode: (int)response.StatusCode,
-                CertificateValid: url.StartsWith("https://") && validateSsl,
-                RedirectCount: redirected ? 1 : 0,
-                Error: null));
-        }
-        catch (HttpRequestException ex) when (
-            ex.InnerException is System.Security.Authentication.AuthenticationException)
-        {
-            return (null, new FetchResult(0, false, 0,
-                Error: $"Certificat SSL invalide : {ex.InnerException.Message}"));
-        }
-        catch (TaskCanceledException)
-        {
-            return (null, new FetchResult(0, false, 0, Error: "Timeout (>15 s)"));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Erreur de fetch pour {Url}", url);
-            return (null, new FetchResult(0, false, 0, Error: ex.Message));
+                analysis.HasContactForm     |= HtmlAnalyzer.HasContactForm(contactHtml);
+                analysis.HasQuoteForm       |= HtmlAnalyzer.HasQuoteForm(contactHtml);
+                analysis.HasBookingSystem   |= HtmlAnalyzer.HasBookingSystem(contactHtml);
+                analysis.HasEmailVisible    |= HtmlAnalyzer.HasEmailVisible(contactHtml);
+                analysis.HasPhoneVisible    |= HtmlAnalyzer.HasPhoneVisible(contactHtml);
+                analysis.BookingProvider    ??= HtmlAnalyzer.DetectBookingProvider(contactHtml);
+
+                if (analysis.HasContactForm) break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Analyse de la page contact {Url} ignorée", contactUrl);
+            }
         }
     }
 
@@ -242,6 +204,4 @@ public class WebsiteAnalyzerService : IWebsiteAnalyzerService
         }
         return sb.ToString().TrimEnd();
     }
-
-    private record FetchResult(int StatusCode, bool CertificateValid, int RedirectCount, string? Error);
 }

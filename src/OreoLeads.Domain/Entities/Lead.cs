@@ -24,6 +24,14 @@ public class Lead : BaseEntity
     public string? Siret { get; set; }
     public string? NafCode { get; set; }
     public int? EmployeeCount { get; set; }
+    public bool IsIndividualEntrepreneur { get; set; }
+    public string? EntrepreneurFirstName { get; set; }
+    public string? EntrepreneurLastName { get; set; }
+
+    // Horodatage de validation manuelle : une donnée validée n'est jamais
+    // écrasée par l'enrichissement automatique.
+    public DateTime? WebsiteValidatedAt { get; set; }
+    public DateTime? EmailValidatedAt { get; set; }
     public LeadStatus Status { get; set; } = LeadStatus.New;
     public LeadPriority Priority { get; set; } = LeadPriority.Medium;
     public int Score { get; set; } = 0;
@@ -38,4 +46,5 @@ public class Lead : BaseEntity
     public ICollection<WebsiteAnalysis> WebsiteAnalyses { get; set; } = new List<WebsiteAnalysis>();
     public ICollection<GeneratedEmail> GeneratedEmails { get; set; } = new List<GeneratedEmail>();
     public ICollection<CompanyContact> CompanyContacts { get; set; } = new List<CompanyContact>();
+    public ICollection<LeadEnrichment> Enrichments { get; set; } = new List<LeadEnrichment>();
 }
