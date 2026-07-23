@@ -1,4 +1,5 @@
 using FluentValidation;
+using OreoLeads.Application.Common;
 using OreoLeads.Application.Features.Leads.DTOs;
 
 namespace OreoLeads.Application.Features.Leads.Validators;
@@ -21,7 +22,7 @@ public class CreateLeadValidator : AbstractValidator<CreateLeadDto>
             .When(x => !string.IsNullOrWhiteSpace(x.Phone));
 
         RuleFor(x => x.Website)
-            .Must(BeAValidUrl).WithMessage("L'URL du site web n'est pas valide.")
+            .Must(UrlNormalizer.IsValidHttpUrl).WithMessage("L'URL du site web n'est pas valide.")
             .When(x => !string.IsNullOrWhiteSpace(x.Website));
 
         RuleFor(x => x.Score)
@@ -33,12 +34,5 @@ public class CreateLeadValidator : AbstractValidator<CreateLeadDto>
         RuleFor(x => x.City)
             .MaximumLength(100)
             .When(x => !string.IsNullOrWhiteSpace(x.City));
-    }
-
-    private static bool BeAValidUrl(string? url)
-    {
-        if (string.IsNullOrWhiteSpace(url)) return true;
-        return Uri.TryCreate(url, UriKind.Absolute, out var result)
-               && (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
     }
 }

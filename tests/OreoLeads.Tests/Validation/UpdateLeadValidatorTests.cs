@@ -45,4 +45,26 @@ public class UpdateLeadValidatorTests
         var result = await _validator.ValidateAsync(dto);
         result.IsValid.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData("cherrier-kuhn-magret-rosheim.notaires.fr")]
+    [InlineData("https://oreostudios.fr")]
+    [InlineData("http://exemple.fr/contact")]
+    [InlineData("www.exemple.fr")]
+    public async Task Website_bare_domain_or_full_url_should_pass(string website)
+    {
+        var dto = new UpdateLeadDto { CompanyName = "Test", Website = website, Score = 0 };
+        var result = await _validator.ValidateAsync(dto);
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("pas une url")]
+    [InlineData("http://")]
+    public async Task Website_garbage_should_fail(string website)
+    {
+        var dto = new UpdateLeadDto { CompanyName = "Test", Website = website, Score = 0 };
+        var result = await _validator.ValidateAsync(dto);
+        result.IsValid.Should().BeFalse();
+    }
 }

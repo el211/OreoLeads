@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OreoLeads.Application.Common;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Ai.DTOs;
 using OreoLeads.Application.Features.Leads.DTOs;
@@ -75,7 +76,7 @@ public class LeadsController : ControllerBase
             TradeName = dto.TradeName,
             Industry = dto.Industry,
             Description = dto.Description,
-            Website = dto.Website,
+            Website = UrlNormalizer.Normalize(dto.Website),
             Email = dto.Email,
             Phone = dto.Phone,
             Address = dto.Address,
@@ -135,7 +136,7 @@ public class LeadsController : ControllerBase
         lead.TradeName = dto.TradeName;
         lead.Industry = dto.Industry;
         lead.Description = dto.Description;
-        lead.Website = dto.Website;
+        lead.Website = UrlNormalizer.Normalize(dto.Website);
         lead.Email = dto.Email;
         lead.Phone = dto.Phone;
         lead.Address = dto.Address;
