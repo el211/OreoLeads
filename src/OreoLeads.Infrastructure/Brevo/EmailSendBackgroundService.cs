@@ -159,13 +159,15 @@ internal sealed class EmailSendBackgroundService : BackgroundService
                 genEmail.SetUpdatedAt();
             }
 
-            // ── Advance Lead status to EmailSent (if not already further along) ─
+            // ── Advance Lead status according to the email type ───────────────
+            // Premier contact → EmailSent ; relance → FollowUp1 ; dernière relance
+            // → FollowUp2 ; proposition → ProposalSent. Progression avant uniquement :
+            // on n'écrase jamais un statut déjà plus avancé (RDV, Client, Rejeté…).
             var lead = await db.Set<Lead>().FindAsync([job.LeadId], ct);
-            if (lead is not null && lead.Status is
-                LeadStatus.New or LeadStatus.Qualified or
-                LeadStatus.ReadyToContact or LeadStatus.EmailPrepared)
+            var targetStatus = MapEmailTypeToStatus(genEmail?.Type);
+            if (lead is not null && targetStatus is { } target && (int)target > (int)lead.Status)
             {
-                lead.Status = LeadStatus.EmailSent;
+                lead.Status = target;
                 lead.SetUpdatedAt();
             }
 
@@ -199,4 +201,17 @@ internal sealed class EmailSendBackgroundService : BackgroundService
                 job.Id, toEmail, canRetry);
         }
     }
+
+    /// <summary>
+    /// Statut cible du prospect selon le type d'e-mail envoyé, ou null si l'envoi
+    /// ne doit pas faire évoluer le statut (réponse, e-mail après RDV…).
+    /// </summary>
+    internal static LeadStatus? MapEmailTypeToStatus(EmailType? type) => type switch
+    {
+        EmailType.FirstContact => LeadStatus.EmailSent,
+        EmailType.FollowUp     => LeadStatus.FollowUp1,
+        EmailType.LastFollowUp => LeadStatus.FollowUp2,
+        EmailType.Proposal     => LeadStatus.ProposalSent,
+        _                      => null,
+    };
 }
