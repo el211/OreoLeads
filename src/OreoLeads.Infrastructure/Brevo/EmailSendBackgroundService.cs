@@ -5,6 +5,7 @@ using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Domain.Enums;
 using OreoLeads.Infrastructure.Persistence;
+using OreoLeads.Infrastructure.Services;
 using OreoLeads.Infrastructure.Smtp;
 
 namespace OreoLeads.Infrastructure.Brevo;
@@ -122,11 +123,12 @@ internal sealed class EmailSendBackgroundService : BackgroundService
         try
         {
             string messageId;
+            var htmlBody = EmailBodyFormatter.EnsureHtml(job.HtmlBody);
 
             if (smtp.IsConfigured)
             {
                 // ── Send via SMTP (own mailbox) ───────────────────────────────
-                messageId = await smtp.SendAsync(toEmail, job.ToName, job.Subject, job.HtmlBody, ct);
+                messageId = await smtp.SendAsync(toEmail, job.ToName, job.Subject, htmlBody, ct);
             }
             else
             {
@@ -139,7 +141,7 @@ internal sealed class EmailSendBackgroundService : BackgroundService
                     ToEmail:     toEmail,
                     ToName:      job.ToName,
                     Subject:     job.Subject,
-                    HtmlBody:    job.HtmlBody,
+                    HtmlBody:    htmlBody,
                     LeadId:      job.LeadId,
                     Tags:        new[] { $"lead:{job.LeadId}" }
                 );
