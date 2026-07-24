@@ -32,3 +32,25 @@ export function useDeleteTag() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tags'] }),
   })
 }
+
+/** Attache un tag à un prospect. */
+export function useAttachTag(leadId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (tagId: string) => {
+      await api.post(`/leads/${leadId}/tags/${tagId}`)
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lead', leadId] }),
+  })
+}
+
+/** Retire un tag d'un prospect. */
+export function useDetachTag(leadId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (tagId: string) => {
+      await api.delete(`/leads/${leadId}/tags/${tagId}`)
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lead', leadId] }),
+  })
+}

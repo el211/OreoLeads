@@ -9,6 +9,7 @@ import {
 import { useLead, useLeadActivities, useLeadNotes, useDeleteLead, useDeleteNote, useCreateNote } from '@/hooks/useLeads'
 import { useLeadFollowUps, useCreateFollowUp } from '@/hooks/useFollowUps'
 import { useGenerateEmail } from '@/hooks/useEmails'
+import { useTags, useAttachTag, useDetachTag } from '@/hooks/useTags'
 import type { EmailStyle, EmailLength, EmailType } from '@/types/emails'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -48,6 +49,11 @@ export function LeadDetailPage() {
   const createFollowUp = useCreateFollowUp(id!)
 
   const generateEmail = useGenerateEmail(id!)
+
+  const { data: allTags = [] } = useTags()
+  const attachTag = useAttachTag(id!)
+  const detachTag = useDetachTag(id!)
+  const [showTagPicker, setShowTagPicker] = useState(false)
 
   const [newNote, setNewNote] = useState({ title: '', content: '', authorName: 'Utilisateur' })
   const [newFollowUp, setNewFollowUp] = useState({ scheduledAt: '', comment: '', userName: 'Utilisateur', priority: 'Medium' as const })
@@ -125,15 +131,56 @@ export function LeadDetailPage() {
       </div>
 
       {/* Tags */}
-      {lead.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {lead.tags.map(t => (
-            <Badge key={t.id} style={{ backgroundColor: t.color + '20', color: t.color, borderColor: t.color }}>
-              {t.name}
-            </Badge>
-          ))}
+      <div className="flex flex-wrap items-center gap-2">
+        {lead.tags.map(t => (
+          <Badge key={t.id} style={{ backgroundColor: t.color + '20', color: t.color, borderColor: t.color }} className="gap-1">
+            {t.name}
+            <button
+              type="button"
+              onClick={() => detachTag.mutate(t.id)}
+              className="rounded-full hover:bg-black/10"
+              aria-label={`Retirer ${t.name}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+
+        <div className="relative">
+          <Button variant="outline" size="sm" className="h-7" onClick={() => setShowTagPicker(v => !v)}>
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Tag
+          </Button>
+
+          {showTagPicker && (
+            <div className="absolute z-20 mt-1 w-56 rounded-md border bg-popover p-2 shadow-md">
+              {(() => {
+                const attachedIds = new Set(lead.tags.map(t => t.id))
+                const available = allTags.filter(t => !attachedIds.has(t.id))
+                if (allTags.length === 0)
+                  return <p className="text-xs text-muted-foreground px-1 py-2">Aucun tag. Créez-en dans le menu « Tags ».</p>
+                if (available.length === 0)
+                  return <p className="text-xs text-muted-foreground px-1 py-2">Tous les tags sont déjà appliqués.</p>
+                return (
+                  <div className="flex flex-wrap gap-1.5">
+                    {available.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => { attachTag.mutate(t.id); setShowTagPicker(false) }}
+                        className="rounded-full px-2.5 py-0.5 text-xs font-medium hover:opacity-80"
+                        style={{ backgroundColor: t.color + '20', color: t.color }}
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Tabs */}
       <Tabs defaultValue="overview">
