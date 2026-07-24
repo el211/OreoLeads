@@ -159,8 +159,12 @@ export function EmailEditorPage() {
               try {
                 await sendEmail.mutateAsync()
                 alert('Email envoyé avec succès !')
-              } catch {
-                alert('Erreur lors de l\'envoi. Vérifiez que le prospect a un email renseigné.')
+              } catch (err: any) {
+                const serverMsg =
+                  typeof err?.response?.data === 'string'
+                    ? err.response.data
+                    : err?.response?.data?.message ?? err?.message
+                alert(`Erreur lors de l'envoi : ${serverMsg ?? 'erreur inconnue'}`)
               }
             }}
           >
