@@ -11,6 +11,10 @@ public interface ILeadRepository
     Task<Lead> CreateAsync(Lead lead, CancellationToken ct = default);
     Task UpdateAsync(Lead lead, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
+    /// <summary>Compte les prospects sans aucun e-mail réellement envoyé.</summary>
+    Task<int> CountUncontactedAsync(CancellationToken ct = default);
+    /// <summary>Supprime les prospects sans aucun e-mail envoyé. Retourne le nombre supprimé.</summary>
+    Task<int> DeleteUncontactedAsync(CancellationToken ct = default);
     Task<bool> ExistsAsync(Guid id, CancellationToken ct = default);
     Task<Lead?> GetEntityByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<LeadSummaryDto>> GetByFilterForExportAsync(LeadFilterDto filter, CancellationToken ct = default);

@@ -4,8 +4,8 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel,
   flexRender, type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { Plus, Search, Download, Upload, Trash2, ExternalLink } from 'lucide-react'
-import { useLeads, useDeleteLead, useLeadsMeta } from '@/hooks/useLeads'
+import { Plus, Search, Download, Upload, Trash2, ExternalLink, MailX } from 'lucide-react'
+import { useLeads, useDeleteLead, useLeadsMeta, useDeleteUncontactedLeads, fetchUncontactedCount } from '@/hooks/useLeads'
 import type { LeadFilter, LeadSummary, LeadStatus, LeadPriority } from '@/types/lead'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -61,6 +61,7 @@ export function LeadsPage() {
   const { data, isLoading, isFetching } = useLeads(filter)
   const { data: meta } = useLeadsMeta()
   const deleteLead = useDeleteLead()
+  const deleteUncontacted = useDeleteUncontactedLeads()
 
   // Apply filter on enter or debounce
   const applyFilter = (overrides: Partial<LeadFilter> = {}) => {
@@ -243,6 +244,20 @@ export function LeadsPage() {
     table.resetRowSelection()
   }
 
+  const handlePurgeUncontacted = async () => {
+    const count = await fetchUncontactedCount()
+    if (count === 0) {
+      alert('Aucun prospect sans e-mail envoyé.')
+      return
+    }
+    if (!confirm(
+      `Retirer les ${count} prospect(s) auxquels aucun e-mail n'a été envoyé ?\n\n` +
+      `Ils seront supprimés de vos prospects mais réapparaîtront si vous relancez la Recherche.`
+    )) return
+    const deleted = await deleteUncontacted.mutateAsync()
+    alert(`${deleted} prospect(s) retiré(s).`)
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -270,6 +285,17 @@ export function LeadsPage() {
           <Button variant="outline" size="sm" onClick={handleExportExcel}>
             <Download className="mr-2 h-4 w-4" />
             Excel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePurgeUncontacted}
+            disabled={deleteUncontacted.isPending}
+            className="text-destructive hover:text-destructive"
+            title="Supprime les prospects sans e-mail envoyé (ils réapparaîtront dans la Recherche)"
+          >
+            <MailX className="mr-2 h-4 w-4" />
+            Sans e-mail
           </Button>
           <Link to="/leads/new">
             <Button size="sm">

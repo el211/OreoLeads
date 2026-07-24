@@ -105,6 +105,27 @@ export function useDeleteLead() {
   })
 }
 
+/** Supprime tous les prospects sans e-mail envoyé. Renvoie le nombre supprimé. */
+export function useDeleteUncontactedLeads() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.delete<{ deleted: number }>('/leads/uncontacted')
+      return data.deleted
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      queryClient.invalidateQueries({ queryKey: ['leads-meta'] })
+    },
+  })
+}
+
+/** Compte les prospects sans e-mail envoyé (pour la confirmation). */
+export async function fetchUncontactedCount(): Promise<number> {
+  const { data } = await api.get<{ count: number }>('/leads/uncontacted/count')
+  return data.count
+}
+
 export function useCreateNote(leadId: string) {
   const queryClient = useQueryClient()
   return useMutation({

@@ -196,6 +196,22 @@ public class LeadsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Nombre de prospects sans e-mail envoyé (pour la confirmation).</summary>
+    [HttpGet("uncontacted/count")]
+    public async Task<IActionResult> CountUncontacted(CancellationToken ct)
+        => Ok(new { count = await _leadRepository.CountUncontactedAsync(ct) });
+
+    /// <summary>
+    /// Supprime tous les prospects sans e-mail envoyé. Issus de la recherche
+    /// officielle, ils réapparaîtront si l'utilisateur relance la recherche.
+    /// </summary>
+    [HttpDelete("uncontacted")]
+    public async Task<IActionResult> DeleteUncontacted(CancellationToken ct)
+    {
+        var deleted = await _leadRepository.DeleteUncontactedAsync(ct);
+        return Ok(new { deleted });
+    }
+
     /// <summary>Importer des prospects via CSV</summary>
     [HttpPost("import")]
     public async Task<IActionResult> Import(IFormFile file, CancellationToken ct)

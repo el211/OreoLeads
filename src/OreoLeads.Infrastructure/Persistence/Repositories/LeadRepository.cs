@@ -80,6 +80,26 @@ public class LeadRepository : ILeadRepository
     public async Task<bool> ExistsAsync(Guid id, CancellationToken ct = default)
         => await _context.Leads.AnyAsync(l => l.Id == id, ct);
 
+    // « Non contacté » = aucun EmailSendJob réellement envoyé (SentAt renseigné).
+    private IQueryable<Lead> UncontactedQuery()
+        => _context.Leads.Where(l =>
+            !_context.EmailSendJobs.Any(j => j.LeadId == l.Id && j.SentAt != null));
+
+    public async Task<int> CountUncontactedAsync(CancellationToken ct = default)
+        => await UncontactedQuery().CountAsync(ct);
+
+    public async Task<int> DeleteUncontactedAsync(CancellationToken ct = default)
+    {
+        // On charge puis Remove (comme la suppression unitaire) pour laisser jouer
+        // le cascade des entités liées (activités, notes, envois, enrichissements…).
+        var toDelete = await UncontactedQuery().ToListAsync(ct);
+        if (toDelete.Count == 0) return 0;
+
+        _context.Leads.RemoveRange(toDelete);
+        await _context.SaveChangesAsync(ct);
+        return toDelete.Count;
+    }
+
     public async Task<Lead?> GetEntityByIdAsync(Guid id, CancellationToken ct = default)
         => await _context.Leads
             .Include(l => l.LeadTags)
