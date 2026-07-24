@@ -6,6 +6,7 @@ import type {
   SearchImportRequest,
   SearchImportResult,
   SearchHistory,
+  AiSearchParseResult,
 } from '@/types/search'
 import type { PagedResult } from '@/types/lead'
 
@@ -13,6 +14,16 @@ export function useCompanySearch() {
   return useMutation({
     mutationFn: async (request: CompanySearchRequest) => {
       const { data } = await api.post<CompanySearchResponse>('/search', request)
+      return data
+    },
+  })
+}
+
+/** Traduit une phrase en filtres de recherche via l'IA (ne génère pas d'entreprises). */
+export function useAiSearchParse() {
+  return useMutation({
+    mutationFn: async (prompt: string) => {
+      const { data } = await api.post<AiSearchParseResult>('/search/parse', { prompt })
       return data
     },
   })

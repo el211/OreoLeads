@@ -55,6 +55,26 @@ public class CompanySearchResultDto
     public bool IsNonDiffusible { get; set; }
 }
 
+/// <summary>Requête en langage naturel pour construire des filtres de recherche via l'IA.</summary>
+public class AiSearchPromptDto
+{
+    public string Prompt { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Filtres extraits par l'IA à partir d'une phrase. Le tableau de résultats est
+/// ensuite rempli par la vraie recherche officielle (données réelles).
+/// WantsWebsite / WantsEmail sont indicatifs : l'API SIRENE ne fournit pas ces
+/// champs, ils s'appliquent après enrichissement (liste Prospects).
+/// </summary>
+public class AiSearchParseResultDto
+{
+    public CompanySearchRequestDto Request { get; set; } = new();
+    public bool? WantsWebsite { get; set; }
+    public bool? WantsEmail { get; set; }
+    public string? Interpretation { get; set; }
+}
+
 public class CompanySearchResponseDto
 {
     public Guid SearchId { get; set; }

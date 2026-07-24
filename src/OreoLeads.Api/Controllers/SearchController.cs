@@ -12,11 +12,37 @@ public class SearchController : ControllerBase
 {
     private readonly ISearchService _searchService;
     private readonly ISearchRepository _searchRepository;
+    private readonly ISearchQueryParser _queryParser;
 
-    public SearchController(ISearchService searchService, ISearchRepository searchRepository)
+    public SearchController(
+        ISearchService searchService,
+        ISearchRepository searchRepository,
+        ISearchQueryParser queryParser)
     {
         _searchService = searchService;
         _searchRepository = searchRepository;
+        _queryParser = queryParser;
+    }
+
+    /// <summary>
+    /// Traduit une phrase en langage naturel en filtres de recherche via l'IA.
+    /// Ne génère pas d'entreprises : les résultats réels viennent ensuite de /api/Search.
+    /// </summary>
+    [HttpPost("parse")]
+    public async Task<IActionResult> Parse([FromBody] AiSearchPromptDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Prompt))
+            return BadRequest("La requête est vide.");
+
+        try
+        {
+            var result = await _queryParser.ParseAsync(dto.Prompt, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     /// <summary>

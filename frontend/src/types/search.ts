@@ -48,6 +48,13 @@ export interface CompanySearchResult {
   isNonDiffusible?: boolean
 }
 
+export interface AiSearchParseResult {
+  request: CompanySearchRequest
+  wantsWebsite?: boolean | null
+  wantsEmail?: boolean | null
+  interpretation?: string | null
+}
+
 export interface CompanySearchResponse {
   searchId: string
   totalFound: number

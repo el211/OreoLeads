@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, History, Download, CheckSquare, Square, ExternalLink, AlertCircle, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
-import { useCompanySearch, useSearchImport } from '@/hooks/useSearch'
+import { Search, History, Download, CheckSquare, Square, ExternalLink, AlertCircle, Loader2, ChevronDown, ChevronRight, Sparkles } from 'lucide-react'
+import { useCompanySearch, useSearchImport, useAiSearchParse } from '@/hooks/useSearch'
 import type { CompanySearchRequest, CompanySearchResponse, CompanySearchResult } from '@/types/search'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,19 +23,51 @@ export function SearchPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [importResult, setImportResult] = useState<{ newLeads: number; updatedLeads: number; duplicates: number; errors: number } | null>(null)
 
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiNote, setAiNote] = useState<string | null>(null)
+
   const search = useCompanySearch()
   const importMutation = useSearchImport()
+  const aiParse = useAiSearchParse()
 
   const set = (field: keyof CompanySearchRequest) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm(prev => ({ ...prev, [field]: e.target.value || undefined }))
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const runSearch = async (req: CompanySearchRequest) => {
     setSelected(new Set())
     setImportResult(null)
-    const result = await search.mutateAsync(form)
+    const result = await search.mutateAsync(req)
     setResponse(result)
+  }
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await runSearch(form)
+  }
+
+  const handleAiSearch = async () => {
+    if (!aiPrompt.trim()) return
+    setAiNote(null)
+    try {
+      const parsed = await aiParse.mutateAsync(aiPrompt)
+      const merged: CompanySearchRequest = {
+        ...DEFAULT_REQUEST,
+        ...parsed.request,
+        maxResults: form.maxResults,
+      }
+      setForm(merged)
+      // Note sur les critères que la recherche officielle ne peut pas filtrer
+      const notes: string[] = []
+      if (parsed.interpretation) notes.push(parsed.interpretation)
+      if (parsed.wantsWebsite === false) notes.push("filtre « sans site web » : à appliquer après import (liste Prospects → Site web : Non)")
+      if (parsed.wantsWebsite === true) notes.push("filtre « avec site web » : à appliquer après enrichissement")
+      if (parsed.wantsEmail === false) notes.push("filtre « sans e-mail » : à appliquer après import")
+      setAiNote(notes.length ? notes.join(' · ') : null)
+      await runSearch(merged)
+    } catch (err: any) {
+      setAiNote(err?.response?.data ?? "L'IA n'a pas pu interpréter cette demande.")
+    }
   }
 
   const toggleSelect = (i: number) =>
@@ -87,6 +119,40 @@ export function SearchPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Recherche IA — phrase → filtres (vraies données) */}
+      <Card className="border-primary/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Recherche assistée par IA
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Décris ta cible en une phrase. L'IA en déduit les filtres, puis la recherche officielle
+            ramène de vraies entreprises. Ex : « coiffeurs à Strasbourg », « restaurants dans le 67 sans site web ».
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input
+              value={aiPrompt}
+              onChange={e => setAiPrompt(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAiSearch()}
+              placeholder="Ex : plombiers indépendants à Lyon…"
+            />
+            <Button onClick={handleAiSearch} disabled={aiParse.isPending || search.isPending}>
+              {aiParse.isPending || search.isPending
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />…</>
+                : <><Sparkles className="h-4 w-4 mr-2" />Rechercher</>}
+            </Button>
+          </div>
+          {aiNote && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">IA :</span> {aiNote}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Search Form */}
       <Card>

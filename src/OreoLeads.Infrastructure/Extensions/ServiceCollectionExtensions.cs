@@ -131,6 +131,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAiConfigurationService, AiConfigurationService>();
         services.AddScoped<IPromptBuilder, PromptBuilder>();
         services.AddScoped<IEmailGeneratorService, EmailGeneratorService>();
+        services.AddScoped<ISearchQueryParser, AiSearchQueryParser>();
 
         // AI Providers — each has its own typed HttpClient + is exposed as IAiProvider
         services.AddHttpClient<ClaudeAiProvider>(c => c.Timeout = TimeSpan.FromSeconds(60));
