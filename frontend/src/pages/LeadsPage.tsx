@@ -38,6 +38,15 @@ const PRIORITY_OPTIONS: { value: LeadPriority | 'all'; label: string }[] = [
   { value: 'Urgent', label: 'Urgente' },
 ]
 
+// value = "<sortBy>:<asc|desc>" (sortBy correspond aux clés du back)
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'createdat:desc', label: 'Plus récents' },
+  { value: 'updatedat:desc', label: 'Dernière modification' },
+  { value: 'lastemailsent:desc', label: 'Dernier e-mail envoyé' },
+  { value: 'score:desc', label: 'Score le plus élevé' },
+  { value: 'companyname:asc', label: 'Nom (A → Z)' },
+]
+
 export function LeadsPage() {
   const navigate = useNavigate()
   const [filter, setFilter] = useState<LeadFilter>({ page: 1, pageSize: 20 })
@@ -46,6 +55,7 @@ export function LeadsPage() {
   const [priority, setPriority] = useState<LeadPriority | 'all'>('all')
   const [industry, setIndustry] = useState('all')
   const [legalForm, setLegalForm] = useState('all')
+  const [sort, setSort] = useState('createdat:desc')
   const [sorting, setSorting] = useState<SortingState>([])
 
   const { data, isLoading, isFetching } = useLeads(filter)
@@ -336,6 +346,19 @@ export function LeadsPage() {
             </SelectContent>
           </Select>
         )}
+
+        <Select value={sort} onValueChange={v => {
+          setSort(v)
+          const [sortBy, dir] = v.split(':')
+          applyFilter({ sortBy, sortDesc: dir === 'desc' })
+        }}>
+          <SelectTrigger className="w-[210px]">
+            <SelectValue placeholder="Trier par" />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
 
         <Button variant="outline" size="sm" onClick={() => applyFilter({ search })}>
           Filtrer

@@ -161,7 +161,10 @@ public class LeadRepository : ILeadRepository
         return query;
     }
 
-    private static IQueryable<Lead> ApplySorting(IQueryable<Lead> query, LeadFilterDto filter)
+    // Date plancher UTC pour placer en dernier les leads sans e-mail envoyé lors du tri.
+    private static readonly DateTime Epoch = new(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    private IQueryable<Lead> ApplySorting(IQueryable<Lead> query, LeadFilterDto filter)
     {
         return filter.SortBy?.ToLower() switch
         {
@@ -170,7 +173,18 @@ public class LeadRepository : ILeadRepository
             "city" => filter.SortDesc ? query.OrderByDescending(l => l.City) : query.OrderBy(l => l.City),
             "status" => filter.SortDesc ? query.OrderByDescending(l => l.Status) : query.OrderBy(l => l.Status),
             "priority" => filter.SortDesc ? query.OrderByDescending(l => l.Priority) : query.OrderBy(l => l.Priority),
-            "updatedat" => filter.SortDesc ? query.OrderByDescending(l => l.UpdatedAt) : query.OrderBy(l => l.UpdatedAt),
+            // « Dernière modification » : retombe sur la date de création si jamais modifié.
+            "updatedat" => filter.SortDesc
+                ? query.OrderByDescending(l => l.UpdatedAt ?? l.CreatedAt)
+                : query.OrderBy(l => l.UpdatedAt ?? l.CreatedAt),
+            // « Dernier e-mail envoyé » : max des SentAt ; les leads sans envoi passent en dernier.
+            "lastemailsent" => filter.SortDesc
+                ? query.OrderByDescending(l => _context.EmailSendJobs
+                    .Where(j => j.LeadId == l.Id && j.SentAt != null)
+                    .Max(j => (DateTime?)j.SentAt) ?? Epoch)
+                : query.OrderBy(l => _context.EmailSendJobs
+                    .Where(j => j.LeadId == l.Id && j.SentAt != null)
+                    .Max(j => (DateTime?)j.SentAt) ?? Epoch),
             _ => filter.SortDesc ? query.OrderByDescending(l => l.CreatedAt) : query.OrderByDescending(l => l.CreatedAt)
         };
     }
