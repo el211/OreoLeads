@@ -4,8 +4,8 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel,
   flexRender, type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { Plus, Search, Download, Upload, Trash2, ExternalLink, MailX } from 'lucide-react'
-import { useLeads, useDeleteLead, useLeadsMeta, useDeleteUncontactedLeads, fetchUncontactedCount } from '@/hooks/useLeads'
+import { Plus, Search, Download, Upload, Trash2, ExternalLink, MailX, Pencil } from 'lucide-react'
+import { useLeads, useDeleteLead, useLeadsMeta, useDeleteUncontactedLeads, fetchUncontactedCount, useBulkUpdateIndustry } from '@/hooks/useLeads'
 import type { LeadFilter, LeadSummary, LeadStatus, LeadPriority } from '@/types/lead'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -62,6 +62,7 @@ export function LeadsPage() {
   const { data: meta } = useLeadsMeta()
   const deleteLead = useDeleteLead()
   const deleteUncontacted = useDeleteUncontactedLeads()
+  const bulkIndustry = useBulkUpdateIndustry()
 
   // Apply filter on enter or debounce
   const applyFilter = (overrides: Partial<LeadFilter> = {}) => {
@@ -244,6 +245,16 @@ export function LeadsPage() {
     table.resetRowSelection()
   }
 
+  const editIndustrySelected = async () => {
+    const ids = table.getSelectedRowModel().rows.map(r => r.original.id)
+    if (!ids.length) return
+    const value = prompt(`Nouveau secteur d'activité pour les ${ids.length} prospect(s) sélectionné(s) :`)
+    if (value === null) return // annulé
+    const updated = await bulkIndustry.mutateAsync({ leadIds: ids, industry: value.trim() })
+    table.resetRowSelection()
+    alert(`Secteur mis à jour pour ${updated} prospect(s).`)
+  }
+
   const handlePurgeUncontacted = async () => {
     const count = await fetchUncontactedCount()
     if (count === 0) {
@@ -391,10 +402,16 @@ export function LeadsPage() {
         </Button>
 
         {table.getSelectedRowModel().rows.length > 0 && (
-          <Button variant="destructive" size="sm" onClick={deleteSelected}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Supprimer ({table.getSelectedRowModel().rows.length})
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={editIndustrySelected} disabled={bulkIndustry.isPending}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Modifier secteur ({table.getSelectedRowModel().rows.length})
+            </Button>
+            <Button variant="destructive" size="sm" onClick={deleteSelected}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Supprimer ({table.getSelectedRowModel().rows.length})
+            </Button>
+          </>
         )}
       </div>
 

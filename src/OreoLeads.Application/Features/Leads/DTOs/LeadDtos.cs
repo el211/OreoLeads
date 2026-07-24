@@ -136,6 +136,13 @@ public class LeadFilterDto
     public int PageSize { get; init; } = 20;
 }
 
+/// <summary>Édition en masse du secteur d'activité pour plusieurs prospects.</summary>
+public class BulkUpdateIndustryDto
+{
+    public List<Guid> LeadIds { get; init; } = new();
+    public string? Industry { get; init; }
+}
+
 public class LeadsMetaDto
 {
     public List<string> Industries { get; init; } = new();

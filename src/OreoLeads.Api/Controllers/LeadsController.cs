@@ -196,6 +196,17 @@ public class LeadsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Met à jour le secteur d'activité de plusieurs prospects en une fois.</summary>
+    [HttpPatch("bulk/industry")]
+    public async Task<IActionResult> BulkUpdateIndustry([FromBody] BulkUpdateIndustryDto dto, CancellationToken ct)
+    {
+        if (dto.LeadIds is null || dto.LeadIds.Count == 0)
+            return BadRequest("Aucun prospect sélectionné.");
+
+        var updated = await _leadRepository.BulkUpdateIndustryAsync(dto.LeadIds, dto.Industry, ct);
+        return Ok(new { updated });
+    }
+
     /// <summary>Nombre de prospects sans e-mail envoyé (pour la confirmation).</summary>
     [HttpGet("uncontacted/count")]
     public async Task<IActionResult> CountUncontacted(CancellationToken ct)

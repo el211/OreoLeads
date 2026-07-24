@@ -19,5 +19,7 @@ public interface ILeadRepository
     Task<Lead?> GetEntityByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<LeadSummaryDto>> GetByFilterForExportAsync(LeadFilterDto filter, CancellationToken ct = default);
     Task<int> BulkImportAsync(List<Lead> leads, CancellationToken ct = default);
+    /// <summary>Met à jour le secteur (Industry) de plusieurs prospects. Retourne le nombre modifié.</summary>
+    Task<int> BulkUpdateIndustryAsync(IReadOnlyCollection<Guid> ids, string? industry, CancellationToken ct = default);
     Task<LeadsMetaDto> GetMetaAsync(CancellationToken ct = default);
 }

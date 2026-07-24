@@ -126,6 +126,21 @@ export async function fetchUncontactedCount(): Promise<number> {
   return data.count
 }
 
+/** Met à jour le secteur d'activité de plusieurs prospects en une fois. */
+export function useBulkUpdateIndustry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ leadIds, industry }: { leadIds: string[]; industry: string }) => {
+      const { data } = await api.patch<{ updated: number }>('/leads/bulk/industry', { leadIds, industry })
+      return data.updated
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      queryClient.invalidateQueries({ queryKey: ['leads-meta'] })
+    },
+  })
+}
+
 export function useCreateNote(leadId: string) {
   const queryClient = useQueryClient()
   return useMutation({

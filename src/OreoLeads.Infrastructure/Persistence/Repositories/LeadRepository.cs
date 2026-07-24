@@ -118,6 +118,20 @@ public class LeadRepository : ILeadRepository
         return await _context.SaveChangesAsync(ct);
     }
 
+    public async Task<int> BulkUpdateIndustryAsync(
+        IReadOnlyCollection<Guid> ids, string? industry, CancellationToken ct = default)
+    {
+        if (ids.Count == 0) return 0;
+        var value = string.IsNullOrWhiteSpace(industry) ? null : industry.Trim();
+
+        // ExecuteUpdate : une seule requête SQL, respecte le filtre multi-tenant.
+        return await _context.Leads
+            .Where(l => ids.Contains(l.Id))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(l => l.Industry, value)
+                .SetProperty(l => l.UpdatedAt, DateTime.UtcNow), ct);
+    }
+
     private IQueryable<Lead> BuildQuery(LeadFilterDto filter)
     {
         var query = _context.Leads
