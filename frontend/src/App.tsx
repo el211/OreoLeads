@@ -9,6 +9,7 @@ import { EditLeadPage } from '@/pages/EditLeadPage'
 import { FollowUpsPage } from '@/pages/FollowUpsPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { SearchHistoryPage } from '@/pages/SearchHistoryPage'
+import { TagsPage } from '@/pages/TagsPage'
 import { LeadAnalysisPage } from '@/pages/LeadAnalysisPage'
 import { AiSettingsPage } from '@/pages/AiSettingsPage'
 import { AirtableSettingsPage } from '@/pages/AirtableSettingsPage'
@@ -71,6 +72,7 @@ function App() {
               <Route path="leads/:id/edit" element={<EditLeadPage />} />
               <Route path="leads/:id/analysis" element={<LeadAnalysisPage />} />
               <Route path="followups" element={<FollowUpsPage />} />
+              <Route path="tags" element={<TagsPage />} />
               <Route path="search" element={<SearchPage />} />
               <Route path="search/history" element={<SearchHistoryPage />} />
               <Route path="emails" element={<EmailDraftsPage />} />
