@@ -4,8 +4,8 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel,
   flexRender, type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { Plus, Search, Download, Upload, Trash2, ExternalLink, MailX, Pencil } from 'lucide-react'
-import { useLeads, useDeleteLead, useLeadsMeta, useDeleteUncontactedLeads, fetchUncontactedCount, useBulkUpdateIndustry } from '@/hooks/useLeads'
+import { Plus, Search, Download, Upload, Trash2, ExternalLink, MailX, Pencil, Sparkles } from 'lucide-react'
+import { useLeads, useDeleteLead, useLeadsMeta, useDeleteUncontactedLeads, fetchUncontactedCount, useBulkUpdateIndustry, useAutofillIndustry } from '@/hooks/useLeads'
 import type { LeadFilter, LeadSummary, LeadStatus, LeadPriority } from '@/types/lead'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -63,6 +63,7 @@ export function LeadsPage() {
   const deleteLead = useDeleteLead()
   const deleteUncontacted = useDeleteUncontactedLeads()
   const bulkIndustry = useBulkUpdateIndustry()
+  const autofillIndustry = useAutofillIndustry()
 
   // Apply filter on enter or debounce
   const applyFilter = (overrides: Partial<LeadFilter> = {}) => {
@@ -255,6 +256,20 @@ export function LeadsPage() {
     alert(`Secteur mis à jour pour ${updated} prospect(s).`)
   }
 
+  const autofillIndustrySelected = async () => {
+    const ids = table.getSelectedRowModel().rows.map(r => r.original.id)
+    if (!ids.length) return
+    if (!confirm(`Laisser l'IA déduire le secteur des ${ids.length} prospect(s) sélectionné(s) (d'après leur nom, description et code NAF) ?`)) return
+    try {
+      const updated = await autofillIndustry.mutateAsync(ids)
+      table.resetRowSelection()
+      alert(`Secteur renseigné par l'IA pour ${updated} prospect(s).`)
+    } catch (err: any) {
+      const msg = typeof err?.response?.data === 'string' ? err.response.data : err?.message
+      alert(`Erreur : ${msg ?? 'IA indisponible.'}`)
+    }
+  }
+
   const handlePurgeUncontacted = async () => {
     const count = await fetchUncontactedCount()
     if (count === 0) {
@@ -403,6 +418,10 @@ export function LeadsPage() {
 
         {table.getSelectedRowModel().rows.length > 0 && (
           <>
+            <Button variant="outline" size="sm" onClick={autofillIndustrySelected} disabled={autofillIndustry.isPending}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Secteur IA ({table.getSelectedRowModel().rows.length})
+            </Button>
             <Button variant="outline" size="sm" onClick={editIndustrySelected} disabled={bulkIndustry.isPending}>
               <Pencil className="mr-2 h-4 w-4" />
               Modifier secteur ({table.getSelectedRowModel().rows.length})

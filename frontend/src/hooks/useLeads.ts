@@ -141,6 +141,21 @@ export function useBulkUpdateIndustry() {
   })
 }
 
+/** Déduit et enregistre le secteur des prospects sélectionnés via l'IA. */
+export function useAutofillIndustry() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (leadIds: string[]) => {
+      const { data } = await api.post<{ updated: number }>('/leads/bulk/autofill-industry', { leadIds })
+      return data.updated
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+      queryClient.invalidateQueries({ queryKey: ['leads-meta'] })
+    },
+  })
+}
+
 export function useCreateNote(leadId: string) {
   const queryClient = useQueryClient()
   return useMutation({

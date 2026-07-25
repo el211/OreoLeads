@@ -207,6 +207,27 @@ public class LeadsController : ControllerBase
         return Ok(new { updated });
     }
 
+    /// <summary>Renseigne le secteur des prospects sélectionnés via l'IA (nom + description + NAF).</summary>
+    [HttpPost("bulk/autofill-industry")]
+    public async Task<IActionResult> AutofillIndustry(
+        [FromBody] BulkAutofillIndustryDto dto,
+        [FromServices] IIndustryClassifier classifier,
+        CancellationToken ct)
+    {
+        if (dto.LeadIds is null || dto.LeadIds.Count == 0)
+            return BadRequest("Aucun prospect sélectionné.");
+
+        try
+        {
+            var updated = await classifier.AutofillAsync(dto.LeadIds, ct);
+            return Ok(new { updated });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     /// <summary>Nombre de prospects sans e-mail envoyé (pour la confirmation).</summary>
     [HttpGet("uncontacted/count")]
     public async Task<IActionResult> CountUncontacted(CancellationToken ct)

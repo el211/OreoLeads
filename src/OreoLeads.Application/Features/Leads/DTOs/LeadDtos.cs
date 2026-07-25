@@ -143,6 +143,12 @@ public class BulkUpdateIndustryDto
     public string? Industry { get; init; }
 }
 
+/// <summary>Remplissage automatique du secteur via l'IA pour plusieurs prospects.</summary>
+public class BulkAutofillIndustryDto
+{
+    public List<Guid> LeadIds { get; init; } = new();
+}
+
 public class LeadsMetaDto
 {
     public List<string> Industries { get; init; } = new();
