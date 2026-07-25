@@ -59,6 +59,8 @@ public class LeadSummaryDto
     public List<TagDto> Tags { get; init; } = new();
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
+    /// <summary>Date du dernier e-mail réellement envoyé (max SentAt), ou null.</summary>
+    public DateTime? LastEmailSentAt { get; set; }
 }
 
 public class CreateLeadDto
@@ -130,6 +132,8 @@ public class LeadFilterDto
     public bool? HasWebsite { get; init; }
     public bool? HasEmail { get; init; }
     public Guid? TagId { get; init; }
+    /// <summary>Ne garde que les prospects dont le dernier e-mail envoyé date d'au moins N jours (candidats à relance).</summary>
+    public int? MinDaysSinceEmail { get; init; }
     public string? SortBy { get; init; }
     public bool SortDesc { get; init; } = false;
     public int Page { get; init; } = 1;

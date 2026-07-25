@@ -32,6 +32,21 @@ public class LeadRepository : ILeadRepository
             .Select(l => MapToSummary(l))
             .ToListAsync(ct);
 
+        // Date du dernier e-mail envoyé pour la page courante (une seule requête).
+        var pageIds = items.Select(i => i.Id).ToList();
+        if (pageIds.Count > 0)
+        {
+            var lastSent = await _context.EmailSendJobs
+                .Where(j => pageIds.Contains(j.LeadId) && j.SentAt != null)
+                .GroupBy(j => j.LeadId)
+                .Select(g => new { LeadId = g.Key, Last = g.Max(j => j.SentAt) })
+                .ToDictionaryAsync(x => x.LeadId, x => x.Last, ct);
+
+            foreach (var item in items)
+                if (lastSent.TryGetValue(item.Id, out var last))
+                    item.LastEmailSentAt = last;
+        }
+
         return new PagedResult<LeadSummaryDto>
         {
             Items = items,
@@ -191,6 +206,15 @@ public class LeadRepository : ILeadRepository
 
         if (filter.TagId.HasValue)
             query = query.Where(l => l.LeadTags.Any(lt => lt.TagId == filter.TagId.Value));
+
+        // Candidats à relance : dernier e-mail envoyé il y a au moins N jours.
+        if (filter.MinDaysSinceEmail is > 0)
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-filter.MinDaysSinceEmail.Value);
+            query = query.Where(l => _context.EmailSendJobs
+                .Where(j => j.LeadId == l.Id && j.SentAt != null)
+                .Max(j => (DateTime?)j.SentAt) <= cutoff);
+        }
 
         return query;
     }

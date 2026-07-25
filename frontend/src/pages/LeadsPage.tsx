@@ -38,6 +38,14 @@ const PRIORITY_OPTIONS: { value: LeadPriority | 'all'; label: string }[] = [
   { value: 'Urgent', label: 'Urgente' },
 ]
 
+// Filtre relance : prospects dont le dernier e-mail date d'au moins N jours
+const RELANCE_OPTIONS: { value: string; label: string }[] = [
+  { value: '0', label: 'Tous' },
+  { value: '7', label: 'À relancer (+7 j)' },
+  { value: '14', label: 'À relancer (+14 j)' },
+  { value: '30', label: 'À relancer (+30 j)' },
+]
+
 // value = "<sortBy>:<asc|desc>" (sortBy correspond aux clés du back)
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'createdat:desc', label: 'Plus récents' },
@@ -56,6 +64,7 @@ export function LeadsPage() {
   const [industry, setIndustry] = useState('all')
   const [legalForm, setLegalForm] = useState('all')
   const [sort, setSort] = useState('createdat:desc')
+  const [relance, setRelance] = useState('0')
   const [sorting, setSorting] = useState<SortingState>([])
 
   const { data, isLoading, isFetching } = useLeads(filter)
@@ -75,6 +84,7 @@ export function LeadsPage() {
       priority: (priority !== 'all' ? priority : undefined) ?? overrides.priority,
       industry: (industry !== 'all' ? industry : undefined) ?? overrides.industry,
       legalForm: (legalForm !== 'all' ? legalForm : undefined) ?? overrides.legalForm,
+      minDaysSinceEmail: overrides.minDaysSinceEmail ?? (relance !== '0' ? Number(relance) : undefined),
       page: 1,
     }))
   }
@@ -157,6 +167,19 @@ export function LeadsPage() {
           {row.original.phone && <p>{row.original.phone}</p>}
         </div>
       ),
+    },
+    {
+      id: 'lastEmail',
+      header: 'Dernier e-mail',
+      cell: ({ row }) => {
+        const d = row.original.lastEmailSentAt
+        if (!d) return <span className="text-muted-foreground text-xs">—</span>
+        const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000)
+        const label = days === 0 ? "aujourd'hui" : days === 1 ? 'hier' : `il y a ${days} j`
+        // Vert < 7 j, orange 7-14 j, rouge > 14 j (candidat à relance)
+        const color = days > 14 ? 'text-red-600' : days >= 7 ? 'text-amber-600' : 'text-green-600'
+        return <span className={`text-xs font-medium ${color}`}>{label}</span>
+      },
     },
     {
       id: 'tags',
@@ -398,6 +421,18 @@ export function LeadsPage() {
             </SelectContent>
           </Select>
         )}
+
+        <Select value={relance} onValueChange={v => {
+          setRelance(v)
+          applyFilter({ minDaysSinceEmail: v !== '0' ? Number(v) : undefined })
+        }}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue placeholder="Relance" />
+          </SelectTrigger>
+          <SelectContent>
+            {RELANCE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
 
         <Select value={sort} onValueChange={v => {
           setSort(v)

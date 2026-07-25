@@ -15,6 +15,7 @@ export function useLeads(filter: LeadFilter) {
       if (filter.legalForm) params.set('legalForm', filter.legalForm)
       if (filter.hasWebsite !== undefined) params.set('hasWebsite', String(filter.hasWebsite))
       if (filter.hasEmail !== undefined) params.set('hasEmail', String(filter.hasEmail))
+      if (filter.minDaysSinceEmail) params.set('minDaysSinceEmail', String(filter.minDaysSinceEmail))
       if (filter.sortBy) params.set('sortBy', filter.sortBy)
       if (filter.sortDesc) params.set('sortDesc', 'true')
       params.set('page', String(filter.page))

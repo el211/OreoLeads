@@ -38,6 +38,7 @@ export interface LeadSummary {
   tags: Tag[]
   createdAt: string
   updatedAt?: string
+  lastEmailSentAt?: string
 }
 
 export interface Lead extends LeadSummary {
@@ -106,6 +107,7 @@ export interface LeadFilter {
   priority?: LeadPriority
   hasWebsite?: boolean
   hasEmail?: boolean
+  minDaysSinceEmail?: number
   sortBy?: string
   sortDesc?: boolean
   page: number
