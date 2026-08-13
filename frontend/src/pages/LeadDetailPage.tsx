@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   ArrowLeft, Edit, Trash2, Mail, MapPin,
-  Building2, Clock, Plus, X, Globe, Bot, Loader2,
+  Building2, Clock, Plus, X, Globe, Bot, Loader2, MessageSquare,
 } from 'lucide-react'
 import { useLead, useLeadActivities, useLeadNotes, useDeleteLead, useDeleteNote, useCreateNote } from '@/hooks/useLeads'
 import { useLeadFollowUps, useCreateFollowUp } from '@/hooks/useFollowUps'
@@ -16,6 +16,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EnrichmentPanel } from '@/components/enrichment/EnrichmentPanel'
+import { SmsComposeModal } from '@/components/SmsComposeModal'
+import { useSmsJobs } from '@/hooks/useSms'
 import { StatusBadge, PriorityBadge } from '@/components/ui/status-badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -67,9 +69,24 @@ export function LeadDetailPage() {
     customInstructions: '',
   })
   const [generatedId, setGeneratedId] = useState<string | null>(null)
+  const [showSmsModal, setShowSmsModal] = useState(false)
+
+  const { data: smsJobs = [] } = useSmsJobs(id!)
 
   if (isLoading) return <div className="text-muted-foreground">Chargement...</div>
   if (!lead) return <div className="text-destructive">Prospect introuvable</div>
+
+  const personalDomains = new Set([
+    'gmail.com', 'googlemail.com', 'hotmail.com', 'hotmail.fr', 'outlook.com',
+    'outlook.fr', 'live.com', 'live.fr', 'msn.com', 'yahoo.com', 'yahoo.fr',
+    'orange.fr', 'wanadoo.fr', 'sfr.fr', 'neuf.fr', 'cegetel.net',
+    'free.fr', 'laposte.net', 'bbox.fr', 'icloud.com', 'me.com', 'mac.com',
+    'proton.me', 'protonmail.com', 'aol.com',
+  ])
+  const hasNoProEmail = !lead.email || (() => {
+    const at = lead.email.indexOf('@')
+    return at < 0 || personalDomains.has(lead.email.slice(at + 1).toLowerCase())
+  })()
 
   const handleDelete = async () => {
     if (!confirm('Supprimer ce prospect ?')) return
@@ -121,6 +138,11 @@ export function LeadDetailPage() {
           <Button variant="outline" size="sm" onClick={() => setShowEmailModal(true)}>
             <Bot className="mr-2 h-4 w-4" />Générer email IA
           </Button>
+          {(hasNoProEmail && lead.phone) && (
+            <Button variant="outline" size="sm" onClick={() => setShowSmsModal(true)}>
+              <MessageSquare className="mr-2 h-4 w-4" />Envoyer SMS
+            </Button>
+          )}
           <Link to={`/leads/${lead.id}/edit`}>
             <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4" />Modifier</Button>
           </Link>
@@ -194,6 +216,9 @@ export function LeadDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="followups">
             Relances <Badge variant="secondary" className="ml-1">{lead.followUpsCount}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="sms">
+            SMS {smsJobs.length > 0 && <Badge variant="secondary" className="ml-1">{smsJobs.length}</Badge>}
           </TabsTrigger>
         </TabsList>
 
@@ -398,6 +423,50 @@ export function LeadDetailPage() {
             </div>
           )}
         </TabsContent>
+
+        {/* SMS */}
+        <TabsContent value="sms" className="space-y-4">
+          <div className="flex justify-end">
+            {lead.phone && (
+              <Button size="sm" onClick={() => setShowSmsModal(true)}>
+                <MessageSquare className="mr-2 h-4 w-4" />Nouveau SMS
+              </Button>
+            )}
+          </div>
+
+          {smsJobs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Aucun SMS envoyé</p>
+          ) : (
+            <div className="space-y-3">
+              {smsJobs.map(job => (
+                <div key={job.id} className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{job.toPhone}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      job.status === 'Sent'      ? 'bg-green-100 text-green-700' :
+                      job.status === 'Failed'    ? 'bg-red-100 text-red-700' :
+                      job.status === 'Pending'   ? 'bg-yellow-100 text-yellow-700' :
+                      job.status === 'Sending'   ? 'bg-blue-100 text-blue-700' :
+                                                   'bg-muted text-muted-foreground'
+                    }`}>
+                      {job.status === 'Sent'      ? 'Envoyé' :
+                       job.status === 'Failed'    ? 'Échoué' :
+                       job.status === 'Pending'   ? 'En attente' :
+                       job.status === 'Sending'   ? 'En cours' :
+                                                    'Annulé'}
+                    </span>
+                  </div>
+                  <p className="text-sm bg-muted rounded p-2">{job.message}</p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{format(new Date(job.createdAt), 'dd/MM/yyyy HH:mm')}</span>
+                    {job.sentAt && <span>Envoyé le {format(new Date(job.sentAt), 'dd/MM/yyyy HH:mm')}</span>}
+                    {job.errorMessage && <span className="text-destructive">{job.errorMessage}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* Generate Email Modal */}
@@ -516,6 +585,15 @@ export function LeadDetailPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {showSmsModal && (
+        <SmsComposeModal
+          leadId={id!}
+          defaultPhone={lead.phone ?? ''}
+          companyName={lead.companyName}
+          onClose={() => setShowSmsModal(false)}
+        />
       )}
     </div>
   )

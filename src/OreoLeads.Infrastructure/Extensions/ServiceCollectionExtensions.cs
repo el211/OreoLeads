@@ -170,6 +170,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailQueueService, EmailQueueService>();
         services.AddScoped<IEmailStatsService, EmailStatsService>();
         services.AddHostedService<EmailSendBackgroundService>();
+        services.AddScoped<ISmsQueueService, SmsQueueService>();
+        services.AddHostedService<SmsSendBackgroundService>();
 
         // ── Airtable ──────────────────────────────────────────────────────────
         services.AddHttpClient<AirtableService>(c => c.Timeout = TimeSpan.FromSeconds(30));

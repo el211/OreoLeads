@@ -118,6 +118,49 @@ internal sealed class BrevoService : IBrevoService
         }
     }
 
+    public async Task<string> SendSmsAsync(SmsSendRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            var body = new Dictionary<string, object?>
+            {
+                ["sender"]    = request.SenderName,
+                ["recipient"] = request.ToPhone,
+                ["content"]   = request.Message,
+                ["type"]      = "transactional"
+            };
+
+            var json    = JsonSerializer.Serialize(body);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using var httpRequest = BuildRequestWithContent(
+                HttpMethod.Post, "/transactionalSMS/sms", request.ApiKey, content);
+            using var response = await ExecuteWithRetryAsync(httpRequest, request.ApiKey, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync(ct);
+                throw new InvalidOperationException($"Brevo SendSms failed ({(int)response.StatusCode}): {error}");
+            }
+
+            var result    = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
+            var messageId = result.TryGetProperty("messageId", out var mid) ? mid.ToString() : null;
+
+            _logger.LogInformation("Brevo SMS sent to {ToPhone}. MessageId: {MessageId}",
+                request.ToPhone, messageId);
+
+            return messageId ?? string.Empty;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Brevo SendSms error: {ex.Message}", ex);
+        }
+    }
+
     public async Task SyncContactAsync(ContactSyncRequest request, CancellationToken ct = default)
     {
         try

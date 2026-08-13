@@ -39,6 +39,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<BrevoConfiguration> BrevoConfigurations => Set<BrevoConfiguration>();
     public DbSet<EmailSendJob> EmailSendJobs => Set<EmailSendJob>();
+    public DbSet<SmsSendJob>   SmsSendJobs   => Set<SmsSendJob>();
     public DbSet<LeadEnrichment> LeadEnrichments => Set<LeadEnrichment>();
     public DbSet<EmailEvent> EmailEvents => Set<EmailEvent>();
     public DbSet<UnsubscribeRecord> UnsubscribeRecords => Set<UnsubscribeRecord>();

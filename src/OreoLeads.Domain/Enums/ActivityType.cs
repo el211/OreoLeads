@@ -16,5 +16,6 @@ public enum ActivityType
     FollowUpCreated,
     Import,
     Export,
-    Enriched
+    Enriched,
+    SmsSent
 }
