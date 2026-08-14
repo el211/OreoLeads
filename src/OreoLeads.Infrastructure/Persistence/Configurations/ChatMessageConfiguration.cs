@@ -11,9 +11,13 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
         builder.ToTable("chat_messages");
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.UserId).IsRequired();
-        builder.Property(x => x.AuthorName).IsRequired().HasMaxLength(100);
-        builder.Property(x => x.Content).IsRequired().HasMaxLength(2000);
+        builder.Property(x => x.Id).HasColumnName("id");
+        builder.Property(x => x.CreatedAt).HasColumnName("created_at");
+        builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+        builder.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+        builder.Property(x => x.AuthorName).HasColumnName("author_name").IsRequired().HasMaxLength(100);
+        builder.Property(x => x.Content).HasColumnName("content").IsRequired().HasMaxLength(2000);
 
         builder.HasIndex(x => x.CreatedAt);
     }
