@@ -27,6 +27,11 @@ internal sealed class BrevoService : IBrevoService
     {
         try
         {
+            var keyPreview = string.IsNullOrWhiteSpace(apiKey)
+                ? "(vide)"
+                : apiKey[..Math.Min(12, apiKey.Length)] + "… (len=" + apiKey.Length + ")";
+            _logger.LogInformation("Brevo TestConnection: clé utilisée = '{KeyPreview}'", keyPreview);
+
             using var request = BuildRequest(HttpMethod.Get, "/account", apiKey);
             using var response = await ExecuteWithRetryAsync(request, apiKey, ct);
 
