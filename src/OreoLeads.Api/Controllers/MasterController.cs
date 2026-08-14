@@ -88,7 +88,7 @@ public class MasterController : ControllerBase
     private bool IsAuthorized(string? password)
     {
         if (string.IsNullOrWhiteSpace(_masterPassword)) return false;
-        return string.Equals(password, _masterPassword, StringComparison.OrdinalIgnoreCase);
+        return password == _masterPassword;
     }
 }
 
