@@ -28,6 +28,7 @@ const STATUS_OPTIONS: { value: LeadStatus | 'all'; label: string }[] = [
   { value: 'Client', label: 'Client' },
   { value: 'Rejected', label: 'Refusé' },
   { value: 'DoNotContact', label: 'Ne pas contacter' },
+  { value: 'SmsSent', label: 'SMS envoyé' },
 ]
 
 const PRIORITY_OPTIONS: { value: LeadPriority | 'all'; label: string }[] = [

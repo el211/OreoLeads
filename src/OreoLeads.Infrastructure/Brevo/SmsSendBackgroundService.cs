@@ -103,6 +103,18 @@ internal sealed class SmsSendBackgroundService : BackgroundService
 
             await queueSvc.MarkSentAsync(job.Id, messageId, ct);
 
+            // Faire passer le lead en "SMS envoyé" s'il est encore dans une
+            // phase précoce (avant d'avoir reçu un email ou d'être plus avancé).
+            var lead = await db.Set<Lead>().FindAsync([job.LeadId], ct);
+            if (lead is not null &&
+                lead.Status != LeadStatus.EmailSent &&
+                lead.Status != LeadStatus.SmsSent   &&
+                lead.Status  < LeadStatus.FollowUp1)
+            {
+                lead.Status = LeadStatus.SmsSent;
+                lead.SetUpdatedAt();
+            }
+
             db.Set<LeadActivity>().Add(new LeadActivity
             {
                 LeadId      = job.LeadId,

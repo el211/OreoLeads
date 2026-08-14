@@ -2,6 +2,7 @@ export type LeadStatus =
   | 'New' | 'Qualified' | 'ReadyToContact' | 'EmailPrepared'
   | 'EmailSent' | 'FollowUp1' | 'FollowUp2' | 'Meeting'
   | 'ProposalSent' | 'Client' | 'Rejected' | 'DoNotContact'
+  | 'SmsSent'
 
 export type LeadPriority = 'Low' | 'Medium' | 'High' | 'Urgent'
 

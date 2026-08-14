@@ -363,6 +363,7 @@ public class LeadRepository : ILeadRepository
         LeadStatus.Client => "Client",
         LeadStatus.Rejected => "Refusé",
         LeadStatus.DoNotContact => "Ne pas contacter",
+        LeadStatus.SmsSent => "SMS envoyé",
         _ => status.ToString()
     };
 

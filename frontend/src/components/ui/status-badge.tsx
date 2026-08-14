@@ -15,6 +15,7 @@ const statusVariants: Record<LeadStatus, BadgeProps['variant']> = {
   Client: 'success',
   Rejected: 'destructive',
   DoNotContact: 'destructive',
+  SmsSent: 'success',
 }
 
 const priorityVariants: Record<LeadPriority, BadgeProps['variant']> = {
