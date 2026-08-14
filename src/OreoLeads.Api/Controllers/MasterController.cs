@@ -20,7 +20,9 @@ public class MasterController : ControllerBase
     public MasterController(IInviteCodeService inviteCodes, IConfiguration configuration)
     {
         _inviteCodes    = inviteCodes;
-        _masterPassword = configuration["MASTER_PANEL_PASSWORD"] ?? string.Empty;
+        _masterPassword = Environment.GetEnvironmentVariable("MASTER_PANEL_PASSWORD")
+                          ?? configuration["MASTER_PANEL_PASSWORD"]
+                          ?? string.Empty;
     }
 
     // ── Auth check ────────────────────────────────────────────────────────────
