@@ -138,7 +138,7 @@ export function LeadDetailPage() {
           <Button variant="outline" size="sm" onClick={() => setShowEmailModal(true)}>
             <Bot className="mr-2 h-4 w-4" />Générer email IA
           </Button>
-          {(hasNoProEmail && lead.phone) && (
+          {lead.phone && (
             <Button variant="outline" size="sm" onClick={() => setShowSmsModal(true)}>
               <MessageSquare className="mr-2 h-4 w-4" />Envoyer SMS
             </Button>
