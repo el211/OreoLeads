@@ -14,6 +14,7 @@ const navItems = [
 
 const settingsItems = [
   { to: '/settings/ai', label: 'IA & Modèle', icon: Bot },
+  { to: '/settings/brevo', label: 'Brevo / SMS', icon: Mail },
   { to: '/settings/prompts', label: 'Prompts', icon: FileText },
   { to: '/settings/airtable', label: 'Airtable', icon: Database },
 ]

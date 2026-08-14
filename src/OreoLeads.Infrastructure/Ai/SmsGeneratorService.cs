@@ -6,18 +6,21 @@ namespace OreoLeads.Infrastructure.Ai;
 
 internal sealed class SmsGeneratorService : ISmsGeneratorService
 {
-    private readonly IAiConfigurationService   _aiConfig;
-    private readonly IEnumerable<IAiProvider>  _providers;
-    private readonly IPromptBuilder            _promptBuilder;
+    private readonly IAiConfigurationService    _aiConfig;
+    private readonly IEnumerable<IAiProvider>   _providers;
+    private readonly IPromptBuilder             _promptBuilder;
+    private readonly IBrevoConfigurationService _brevoConfig;
 
     public SmsGeneratorService(
-        IAiConfigurationService  aiConfig,
-        IEnumerable<IAiProvider> providers,
-        IPromptBuilder           promptBuilder)
+        IAiConfigurationService     aiConfig,
+        IEnumerable<IAiProvider>    providers,
+        IPromptBuilder              promptBuilder,
+        IBrevoConfigurationService  brevoConfig)
     {
         _aiConfig      = aiConfig;
         _providers     = providers;
         _promptBuilder = promptBuilder;
+        _brevoConfig   = brevoConfig;
     }
 
     public async Task<GenerateSmsResponseDto> GenerateAsync(
@@ -32,8 +35,13 @@ internal sealed class SmsGeneratorService : ISmsGeneratorService
         var provider = _providers.FirstOrDefault(p => p.ProviderType == config.ProviderType)
                        ?? throw new InvalidOperationException($"Fournisseur '{config.ProviderType}' non enregistré.");
 
+        // Récupère les coordonnées de contact depuis la config Brevo
+        var brevo         = await _brevoConfig.GetCurrentAsync(ct);
+        var contactPhone  = brevo?.ContactPhone;
+        var contactEmail  = brevo?.SenderEmail;
+
         var systemPrompt = await _promptBuilder.BuildSmsSystemPromptAsync(ct);
-        var userPrompt   = await _promptBuilder.BuildSmsUserPromptAsync(leadId, request, ct);
+        var userPrompt   = await _promptBuilder.BuildSmsUserPromptAsync(leadId, request, contactPhone, contactEmail, ct);
 
         // SMS needs few tokens — cap at 200 to keep response tight
         var completion = await provider.CompleteAsync(

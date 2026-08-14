@@ -189,7 +189,7 @@ Règles STRICTES (toutes obligatoires) :
 2. Structure obligatoire en 3 parties :
    a) Accroche : "Bonjour, Oreo Studios (agence web) –" puis UNE opportunité TRÈS concrète tirée de l'analyse du site (ex: "votre site n'a pas de formulaire de contact", "votre site n'est pas sécurisé HTTPS", "votre site tourne sur un CMS vieillissant").
    b) Valeur : ce que ça leur apporte concrètement (ex: "= des clients perdus", "= méfiance des visiteurs").
-   c) CTA : "Intéressé ? Répondez à ce SMS." ou "On vous rappelle ?"
+   c) CTA : utilise les vraies coordonnées fournies (ex: "Appelez le 06XX" ou "Écrivez à support@..."). JAMAIS "Répondez à ce SMS" (le numéro SMS ne reçoit pas les réponses).
 3. JAMAIS de formule générique comme "gagnerait des demandes". Sois précis sur CE QUI MANQUE sur LEUR site.
 4. Si aucune analyse dispo, mentionne leur secteur d'activité et propose un audit gratuit.
 5. Réponds UNIQUEMENT avec le texte brut du SMS. Aucun guillemet, aucune explication.
@@ -197,7 +197,7 @@ Règles STRICTES (toutes obligatoires) :
     }
 
     public async Task<string> BuildSmsUserPromptAsync(
-        Guid leadId, GenerateSmsRequestDto request, CancellationToken ct = default)
+        Guid leadId, GenerateSmsRequestDto request, string? contactPhone, string? contactEmail, CancellationToken ct = default)
     {
         var lead = await _db.Leads
             .Include(l => l.WebsiteAnalyses)
@@ -250,8 +250,19 @@ Règles STRICTES (toutes obligatoires) :
             sb.AppendLine(request.CustomInstructions);
         }
 
+        // Coordonnées de rappel
+        sb.AppendLine();
+        sb.AppendLine("=== COORDONNÉES DE CONTACT OREO STUDIOS ===");
+        if (!string.IsNullOrWhiteSpace(contactPhone))
+            sb.AppendLine($"Téléphone : {contactPhone}");
+        if (!string.IsNullOrWhiteSpace(contactEmail))
+            sb.AppendLine($"Email : {contactEmail}");
+        if (string.IsNullOrWhiteSpace(contactPhone) && string.IsNullOrWhiteSpace(contactEmail))
+            sb.AppendLine("(aucune coordonnée configurée — termine par 'Oreo Studios' uniquement)");
+
         sb.AppendLine();
         sb.AppendLine("Rédige un SMS de prospection de 160 caractères maximum pour ce prospect.");
+        sb.AppendLine("Le CTA doit inclure les vraies coordonnées ci-dessus (téléphone en priorité, sinon email).");
 
         return sb.ToString();
     }

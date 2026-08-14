@@ -12,6 +12,7 @@ import { SearchHistoryPage } from '@/pages/SearchHistoryPage'
 import { TagsPage } from '@/pages/TagsPage'
 import { LeadAnalysisPage } from '@/pages/LeadAnalysisPage'
 import { AiSettingsPage } from '@/pages/AiSettingsPage'
+import { BrevoSettingsPage } from '@/pages/BrevoSettingsPage'
 import { AirtableSettingsPage } from '@/pages/AirtableSettingsPage'
 import { AirtableMappingPage } from '@/pages/AirtableMappingPage'
 import { AirtableSyncHistoryPage } from '@/pages/AirtableSyncHistoryPage'
@@ -78,6 +79,7 @@ function App() {
               <Route path="emails" element={<EmailDraftsPage />} />
               <Route path="emails/:id" element={<EmailEditorPage />} />
               <Route path="settings/ai" element={<AiSettingsPage />} />
+              <Route path="settings/brevo" element={<BrevoSettingsPage />} />
               <Route path="settings/prompts" element={<PromptTemplatesPage />} />
               <Route path="settings/airtable" element={<AirtableSettingsPage />} />
               <Route path="airtable/mapping" element={<AirtableMappingPage />} />

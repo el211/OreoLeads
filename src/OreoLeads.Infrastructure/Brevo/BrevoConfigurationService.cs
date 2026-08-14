@@ -76,6 +76,7 @@ internal sealed class BrevoConfigurationService : IBrevoConfigurationService
         existing.SenderName    = dto.SenderName;
         existing.SenderEmail   = dto.SenderEmail;
         existing.ReplyTo       = dto.ReplyTo;
+        existing.ContactPhone  = dto.ContactPhone;
         existing.IsEnabled     = dto.IsEnabled;
         existing.TestMode      = dto.TestMode;
         existing.TestModeEmail = dto.TestModeEmail;

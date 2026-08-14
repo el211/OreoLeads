@@ -10,6 +10,8 @@ public class BrevoConfiguration : BaseEntity
     public string  SenderName       { get; set; } = string.Empty;
     public string  SenderEmail      { get; set; } = string.Empty;
     public string? ReplyTo          { get; set; }
+    /// <summary>Numéro de téléphone affiché dans les SMS de prospection pour que les prospects puissent rappeler.</summary>
+    public string? ContactPhone     { get; set; }
     public bool    IsEnabled        { get; set; } = false;
     public bool    TestMode         { get; set; } = false;
     public string? TestModeEmail    { get; set; }
