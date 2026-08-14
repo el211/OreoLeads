@@ -76,17 +76,6 @@ export function LeadDetailPage() {
   if (isLoading) return <div className="text-muted-foreground">Chargement...</div>
   if (!lead) return <div className="text-destructive">Prospect introuvable</div>
 
-  const personalDomains = new Set([
-    'gmail.com', 'googlemail.com', 'hotmail.com', 'hotmail.fr', 'outlook.com',
-    'outlook.fr', 'live.com', 'live.fr', 'msn.com', 'yahoo.com', 'yahoo.fr',
-    'orange.fr', 'wanadoo.fr', 'sfr.fr', 'neuf.fr', 'cegetel.net',
-    'free.fr', 'laposte.net', 'bbox.fr', 'icloud.com', 'me.com', 'mac.com',
-    'proton.me', 'protonmail.com', 'aol.com',
-  ])
-  const hasNoProEmail = !lead.email || (() => {
-    const at = lead.email.indexOf('@')
-    return at < 0 || personalDomains.has(lead.email.slice(at + 1).toLowerCase())
-  })()
 
   const handleDelete = async () => {
     if (!confirm('Supprimer ce prospect ?')) return

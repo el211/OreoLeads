@@ -104,7 +104,6 @@ internal sealed class AuthService : IAuthService
         string refreshToken, string ipAddress, CancellationToken ct = default)
     {
         var token = await _context.RefreshTokens
-            .Include(r => r.UserId)
             .FirstOrDefaultAsync(r => r.Token == refreshToken, ct)
             ?? throw new UnauthorizedAccessException("Invalid refresh token.");
 

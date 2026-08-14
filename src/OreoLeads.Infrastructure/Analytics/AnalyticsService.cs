@@ -386,12 +386,16 @@ internal sealed class AnalyticsService : IAnalyticsService
 
         var (start, end) = range.Resolve();
 
-        var result = await _db.Leads
+        var raw = await _db.Leads
             .Where(l => l.CreatedAt >= start && l.CreatedAt <= end)
-            .GroupBy(l => l.CreatedAt.Date)
+            .Select(l => l.CreatedAt.Date)
+            .ToListAsync(ct);
+
+        var result = raw
+            .GroupBy(d => d)
             .Select(g => new TimeSeriesPointDto(g.Key, g.Count(), null))
             .OrderBy(t => t.Date)
-            .ToListAsync(ct);
+            .ToList();
 
         _cache.Set(cacheKey, result, CacheTtl);
         return result;
@@ -405,12 +409,16 @@ internal sealed class AnalyticsService : IAnalyticsService
 
         var (start, end) = range.Resolve();
 
-        var result = await _db.EmailSendJobs
+        var raw = await _db.EmailSendJobs
             .Where(e => e.CreatedAt >= start && e.CreatedAt <= end && e.Status == EmailSendStatus.Sent)
-            .GroupBy(e => e.CreatedAt.Date)
+            .Select(e => e.CreatedAt.Date)
+            .ToListAsync(ct);
+
+        var result = raw
+            .GroupBy(d => d)
             .Select(g => new TimeSeriesPointDto(g.Key, g.Count(), null))
             .OrderBy(t => t.Date)
-            .ToListAsync(ct);
+            .ToList();
 
         _cache.Set(cacheKey, result, CacheTtl);
         return result;
