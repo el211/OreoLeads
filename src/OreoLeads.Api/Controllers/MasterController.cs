@@ -16,12 +16,10 @@ public class MasterController : ControllerBase
 {
     private readonly IInviteCodeService _inviteCodes;
     private readonly string             _masterPassword;
-    private readonly ILogger<MasterController> _logger;
 
-    public MasterController(IInviteCodeService inviteCodes, IConfiguration configuration, ILogger<MasterController> logger)
+    public MasterController(IInviteCodeService inviteCodes, IConfiguration configuration)
     {
         _inviteCodes    = inviteCodes;
-        _logger         = logger;
         _masterPassword = Environment.GetEnvironmentVariable("MASTER_PANEL_PASSWORD")
                           ?? configuration["MASTER_PANEL_PASSWORD"]
                           ?? string.Empty;
@@ -31,11 +29,7 @@ public class MasterController : ControllerBase
 
     [HttpPost("verify")]
     public IActionResult Verify([FromHeader(Name = "X-Master-Password")] string? password)
-    {
-        _logger.LogWarning("Master verify: received='{Received}' (len={RL}), expected len={EL}",
-            password ?? "(null)", password?.Length ?? 0, _masterPassword.Length);
-        return IsAuthorized(password) ? Ok(new { ok = true }) : Unauthorized(new { message = "Mot de passe incorrect." });
-    }
+        => IsAuthorized(password) ? Ok(new { ok = true }) : Unauthorized(new { message = "Mot de passe incorrect." });
 
     // ── Invite codes ──────────────────────────────────────────────────────────
 
@@ -94,7 +88,7 @@ public class MasterController : ControllerBase
     private bool IsAuthorized(string? password)
     {
         if (string.IsNullOrWhiteSpace(_masterPassword)) return false;
-        return password == _masterPassword;
+        return string.Equals(password, _masterPassword, StringComparison.OrdinalIgnoreCase);
     }
 }
 
