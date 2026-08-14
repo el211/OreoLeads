@@ -75,6 +75,24 @@ public class MasterController : ControllerBase
         return await _admin.UnbanUserAsync(id, ct) ? Ok() : NotFound();
     }
 
+    [HttpPost("users/{id}/lock")]
+    public async Task<IActionResult> LockUser(
+        [FromHeader(Name = "X-Master-Password")] string? password,
+        string id, CancellationToken ct)
+    {
+        if (!IsAuthorized(password)) return Unauthorized();
+        return await _admin.LockUserAsync(id, ct) ? Ok() : NotFound();
+    }
+
+    [HttpPost("users/{id}/unlock")]
+    public async Task<IActionResult> UnlockUser(
+        [FromHeader(Name = "X-Master-Password")] string? password,
+        string id, CancellationToken ct)
+    {
+        if (!IsAuthorized(password)) return Unauthorized();
+        return await _admin.UnlockUserAsync(id, ct) ? Ok() : NotFound();
+    }
+
     [HttpDelete("users/{id}")]
     public async Task<IActionResult> DeleteUser(
         [FromHeader(Name = "X-Master-Password")] string? password,

@@ -113,7 +113,7 @@ internal sealed class AuthService : IAuthService
         if (!result.Succeeded)
         {
             if (result.IsLockedOut)
-                throw new UnauthorizedAccessException("Account is temporarily locked. Try again later.");
+                throw new UnauthorizedAccessException("Votre compte est verrouillé. Contactez l'administrateur.");
             throw new UnauthorizedAccessException("Invalid email or password.");
         }
 

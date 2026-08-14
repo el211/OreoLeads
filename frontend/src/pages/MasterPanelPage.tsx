@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, Trash2, Plus, RefreshCw, CheckCircle2, Lock, ShieldOff, ShieldCheck, KeyRound, LogIn } from 'lucide-react'
+import { Copy, Trash2, Plus, RefreshCw, CheckCircle2, Lock, Unlock, ShieldOff, ShieldCheck, KeyRound, LogIn } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
@@ -29,6 +29,7 @@ interface MasterUser {
   firstName: string
   lastName: string
   isActive: boolean
+  isLocked: boolean
   organizationName: string | null
   roles: string[]
 }
@@ -131,6 +132,16 @@ export default function MasterPanelPage() {
       qc.invalidateQueries({ queryKey: ['master-users'] })
       qc.invalidateQueries({ queryKey: ['master-stats'] })
     },
+  })
+
+  const lockUser = useMutation({
+    mutationFn: async (id: string) => api.post(`/users/${id}/lock`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['master-users'] }),
+  })
+
+  const unlockUser = useMutation({
+    mutationFn: async (id: string) => api.post(`/users/${id}/unlock`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['master-users'] }),
   })
 
   const deleteUser = useMutation({
@@ -344,6 +355,7 @@ export default function MasterPanelPage() {
                         <span key={r} className="text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">{r}</span>
                       ))}
                       {!u.isActive && <span className="text-[10px] bg-red-900 text-red-300 px-1.5 py-0.5 rounded">BANNI</span>}
+                      {u.isLocked && <span className="text-[10px] bg-orange-900 text-orange-300 px-1.5 py-0.5 rounded">VERROUILLÉ</span>}
                     </div>
                     <p className="text-sm text-gray-400 mt-0.5">{u.email}</p>
                     {u.organizationName && <p className="text-xs text-gray-600 mt-0.5">{u.organizationName}</p>}
@@ -389,6 +401,23 @@ export default function MasterPanelPage() {
                         className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-green-400 transition-colors"
                       >
                         <ShieldCheck className="h-4 w-4" />
+                      </button>
+                    )}
+                    {u.isLocked ? (
+                      <button
+                        onClick={() => unlockUser.mutate(u.id)}
+                        title="Déverrouiller le compte"
+                        className="p-1.5 rounded-lg hover:bg-gray-800 text-orange-400 hover:text-green-400 transition-colors"
+                      >
+                        <Unlock className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => lockUser.mutate(u.id)}
+                        title="Verrouiller le compte"
+                        className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-orange-400 transition-colors"
+                      >
+                        <Lock className="h-4 w-4" />
                       </button>
                     )}
                     <button

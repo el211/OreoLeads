@@ -47,15 +47,17 @@ internal class MasterAdminService : IMasterAdminService
         foreach (var u in users)
         {
             var roles = await _userManager.GetRolesAsync(u);
+            var isLocked = u.LockoutEnabled && u.LockoutEnd.HasValue && u.LockoutEnd > DateTimeOffset.UtcNow;
             result.Add(new MasterUserDto(
                 Id:               u.Id,
                 Email:            u.Email ?? string.Empty,
                 FirstName:        u.FirstName,
                 LastName:         u.LastName,
                 IsActive:         u.IsActive,
+                IsLocked:         isLocked,
                 OrganizationName: u.Organization?.Name,
                 Roles:            roles.ToArray(),
-                CreatedAt:        u.LockoutEnd?.UtcDateTime ?? DateTime.UtcNow));
+                CreatedAt:        DateTime.UtcNow));
         }
         return result;
     }
@@ -79,6 +81,24 @@ internal class MasterAdminService : IMasterAdminService
         if (user == null) return false;
         user.IsActive = true;
         await _userManager.UpdateAsync(user);
+        return true;
+    }
+
+    public async Task<bool> LockUserAsync(string userId, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null) return false;
+        await _userManager.SetLockoutEnabledAsync(user, true);
+        await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+        return true;
+    }
+
+    public async Task<bool> UnlockUserAsync(string userId, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null) return false;
+        await _userManager.SetLockoutEndDateAsync(user, null);
+        await _userManager.ResetAccessFailedCountAsync(user);
         return true;
     }
 
