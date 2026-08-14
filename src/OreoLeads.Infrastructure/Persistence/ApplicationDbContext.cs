@@ -48,6 +48,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<AirtableSyncJob> AirtableSyncJobs => Set<AirtableSyncJob>();
     public DbSet<AirtableSyncLog> AirtableSyncLogs => Set<AirtableSyncLog>();
     public DbSet<AirtableRecordLink> AirtableRecordLinks => Set<AirtableRecordLink>();
+    public DbSet<InviteCode> InviteCodes => Set<InviteCode>();
 
     // Automation
     public DbSet<AutomationWorkflow> AutomationWorkflows => Set<AutomationWorkflow>();

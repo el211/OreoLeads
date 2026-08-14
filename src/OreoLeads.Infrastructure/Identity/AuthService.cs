@@ -7,6 +7,7 @@ using OreoLeads.Application.Features.Auth.DTOs;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Infrastructure.Persistence;
 using OreoLeads.Infrastructure.Smtp;
+using System.Text.RegularExpressions;
 
 namespace OreoLeads.Infrastructure.Identity;
 
@@ -18,7 +19,9 @@ internal sealed class AuthService : IAuthService
     private readonly ApplicationDbContext _context;
     private readonly ILogger<AuthService> _logger;
     private readonly SmtpEmailSender _smtp;
+    private readonly IInviteCodeService _inviteCodes;
     private readonly string _appBaseUrl;
+    private readonly bool _inviteRequired;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
@@ -27,17 +30,23 @@ internal sealed class AuthService : IAuthService
         ApplicationDbContext context,
         ILogger<AuthService> logger,
         SmtpEmailSender smtp,
+        IInviteCodeService inviteCodes,
         IConfiguration configuration)
     {
-        _userManager = userManager;
-        _signInManager = signInManager;
-        _jwtService = jwtService;
-        _context = context;
-        _logger = logger;
-        _smtp = smtp;
-        _appBaseUrl = configuration["AppBaseUrl"]
+        _userManager    = userManager;
+        _signInManager  = signInManager;
+        _jwtService     = jwtService;
+        _context        = context;
+        _logger         = logger;
+        _smtp           = smtp;
+        _inviteCodes    = inviteCodes;
+        _appBaseUrl     = configuration["AppBaseUrl"]
             ?? configuration["Cors:AllowedOrigins:0"]
             ?? "https://crm.oreostudios.fr";
+        // Invite codes are required unless explicitly disabled
+        _inviteRequired = !string.Equals(
+            configuration["Registration:InviteRequired"], "false",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<AuthResponseDto> RegisterAsync(
@@ -45,6 +54,17 @@ internal sealed class AuthService : IAuthService
     {
         if (await _userManager.FindByEmailAsync(dto.Email) != null)
             throw new InvalidOperationException($"Email '{dto.Email}' is already taken.");
+
+        // Validate invite code if registration is restricted
+        if (_inviteRequired)
+        {
+            if (string.IsNullOrWhiteSpace(dto.InviteCode))
+                throw new InvalidOperationException("Un code d'invitation est requis pour créer un compte.");
+
+            var valid = await _inviteCodes.ValidateAndConsumeAsync(dto.InviteCode, dto.Email, ct);
+            if (!valid)
+                throw new InvalidOperationException("Code d'invitation invalide, expiré ou déjà utilisé.");
+        }
 
         Organization? org = null;
         if (!string.IsNullOrWhiteSpace(dto.OrganizationName))

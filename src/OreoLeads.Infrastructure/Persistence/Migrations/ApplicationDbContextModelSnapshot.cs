@@ -1915,6 +1915,47 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.ToTable("follow_ups", (string)null);
                 });
 
+            modelBuilder.Entity("OreoLeads.Domain.Entities.InviteCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UsedByEmail")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id")
+                        .HasName("pk_invite_codes");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_invite_codes_code");
+
+                    b.ToTable("invite_codes", (string)null);
+                });
+
             modelBuilder.Entity("OreoLeads.Domain.Entities.GeneratedEmail", b =>
                 {
                     b.Property<Guid>("Id")

@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [regFirstName, setRegFirstName] = useState('')
   const [regLastName, setRegLastName] = useState('')
   const [regOrgName, setRegOrgName] = useState('')
+  const [regInviteCode, setRegInviteCode] = useState('')
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -49,6 +50,7 @@ export default function LoginPage() {
         firstName: regFirstName,
         lastName: regLastName,
         organizationName: regOrgName || undefined,
+        inviteCode: regInviteCode || undefined,
       })
       navigate(from, { replace: true })
     } catch (err: unknown) {
@@ -200,6 +202,21 @@ export default function LoginPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="Oreo Studios"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Code d'invitation <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={regInviteCode}
+                  onChange={e => setRegInviteCode(e.target.value.toUpperCase())}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono tracking-widest"
+                  placeholder="XXXX-XXXX"
+                  maxLength={9}
+                />
+                <p className="text-xs text-gray-400 mt-1">Code fourni par l'administrateur.</p>
               </div>
               <button
                 type="submit"

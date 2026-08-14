@@ -22,6 +22,7 @@ export interface RegisterDto {
   firstName: string
   lastName: string
   organizationName?: string
+  inviteCode?: string
 }
 
 export interface LoginDto {

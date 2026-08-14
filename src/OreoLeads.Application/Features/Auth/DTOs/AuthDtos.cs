@@ -5,7 +5,8 @@ public record RegisterDto(
     string Password,
     string FirstName,
     string LastName,
-    string? OrganizationName = null);
+    string? OrganizationName = null,
+    string? InviteCode = null);
 
 public record LoginDto(
     string Email,

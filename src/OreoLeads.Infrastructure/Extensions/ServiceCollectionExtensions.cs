@@ -90,6 +90,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPromptTemplateRepository, PromptTemplateRepository>();
 
         // Services
+        services.AddScoped<IInviteCodeService, InviteCodeService>();
         services.AddScoped<ICsvImportService, CsvImportService>();
         services.AddScoped<IExcelExportService, ExcelExportService>();
         services.AddScoped<IDashboardService, DashboardService>();
