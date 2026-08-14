@@ -64,6 +64,9 @@ services:
       - Enrichment__AutoApplyThreshold=${ENRICHMENT_THRESHOLD:-0.8}
       - Playwright__Enabled=${PLAYWRIGHT_ENABLED:-true}
 
+      # ── Master panel ──────────────────────────────────────────────────────
+      - MASTER_PANEL_PASSWORD=${MASTER_PANEL_PASSWORD}
+
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health/live || exit 1"]
       interval: 30s
