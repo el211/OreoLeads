@@ -43,9 +43,9 @@ internal sealed class SmsGeneratorService : ISmsGeneratorService
         var systemPrompt = await _promptBuilder.BuildSmsSystemPromptAsync(ct);
         var userPrompt   = await _promptBuilder.BuildSmsUserPromptAsync(leadId, request, contactPhone, contactEmail, ct);
 
-        // 500 tokens covers a full SMS (160 chars ≈ 50 tokens) plus reasoning budget for gpt-5.x
+        // 800 tokens covers a 320-char SMS (≈ 100 tokens) plus reasoning budget for gpt-5.x
         var completion = await provider.CompleteAsync(
-            new AiCompletionRequest(systemPrompt, userPrompt, MaxTokens: 500, Temperature: config.Temperature), ct);
+            new AiCompletionRequest(systemPrompt, userPrompt, MaxTokens: 800, Temperature: config.Temperature), ct);
 
         // Clean up the response: strip quotes, trim whitespace, enforce 160-char limit
         var message = completion.Content
@@ -53,8 +53,8 @@ internal sealed class SmsGeneratorService : ISmsGeneratorService
             .Trim('"', '\'')
             .Trim();
 
-        if (message.Length > 160)
-            message = message[..160];
+        if (message.Length > 320)
+            message = message[..320];
 
         return new GenerateSmsResponseDto(
             Message:      message,

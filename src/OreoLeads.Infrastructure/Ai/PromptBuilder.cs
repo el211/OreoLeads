@@ -185,7 +185,7 @@ internal sealed class PromptBuilder : IPromptBuilder
 Tu rédiges un SMS de prospection commerciale pour Oreo Studios, agence web française.
 
 Règles STRICTES (toutes obligatoires) :
-1. 160 caractères MAXIMUM, espaces inclus. Compte précisément.
+1. 320 caractères MAXIMUM, espaces inclus. Compte précisément. Tu peux aller jusqu'à 320 — profite de l'espace pour être percutant.
 2. Structure obligatoire en 3 parties :
    a) Accroche : "Bonjour, Oreo Studios (agence web) –" puis UNE opportunité TRÈS concrète tirée de l'analyse du site (ex: "votre site n'a pas de formulaire de contact", "votre site n'est pas sécurisé HTTPS", "votre site tourne sur un CMS vieillissant").
    b) Valeur : ce que ça leur apporte concrètement (ex: "= des clients perdus", "= méfiance des visiteurs").
@@ -261,7 +261,7 @@ Règles STRICTES (toutes obligatoires) :
             sb.AppendLine("(aucune coordonnée configurée — termine par 'Oreo Studios' uniquement)");
 
         sb.AppendLine();
-        sb.AppendLine("Rédige un SMS de prospection de 160 caractères maximum pour ce prospect.");
+        sb.AppendLine("Rédige un SMS de prospection de 320 caractères maximum pour ce prospect.");
         sb.AppendLine("Le CTA doit inclure les vraies coordonnées ci-dessus (téléphone en priorité, sinon email).");
 
         return sb.ToString();

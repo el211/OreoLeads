@@ -12,7 +12,7 @@ interface SmsComposeModalProps {
   onClose: () => void
 }
 
-const MAX_CHARS = 160
+const MAX_CHARS = 320
 
 export function SmsComposeModal({ leadId, defaultPhone, companyName, onClose }: SmsComposeModalProps) {
   const [phone, setPhone]                   = useState(defaultPhone ?? '')
