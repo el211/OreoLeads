@@ -2,6 +2,19 @@ using OreoLeads.Domain.Enums;
 
 namespace OreoLeads.Application.Features.Sms.DTOs;
 
+public record GenerateSmsRequestDto(
+    string? CustomInstructions = null
+);
+
+public record GenerateSmsResponseDto(
+    string Message,
+    int    CharCount,
+    string ProviderUsed,
+    string ModelUsed,
+    int    TotalTokens,
+    int    GenerationMs
+);
+
 public record SendSmsRequestDto(
     string    ToPhone,
     string    Message,

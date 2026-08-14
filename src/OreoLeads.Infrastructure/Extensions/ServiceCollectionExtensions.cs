@@ -131,6 +131,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAiConfigurationService, AiConfigurationService>();
         services.AddScoped<IPromptBuilder, PromptBuilder>();
         services.AddScoped<IEmailGeneratorService, EmailGeneratorService>();
+        services.AddScoped<ISmsGeneratorService, SmsGeneratorService>();
         services.AddScoped<ISearchQueryParser, AiSearchQueryParser>();
         services.AddScoped<IIndustryClassifier, AiIndustryClassifier>();
 

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Application.Features.Ai.DTOs;
+using OreoLeads.Application.Features.Sms.DTOs;
 using OreoLeads.Domain.Enums;
 using OreoLeads.Infrastructure.Analysis;
 using OreoLeads.Infrastructure.Persistence;
@@ -175,6 +176,83 @@ internal sealed class PromptBuilder : IPromptBuilder
         EmailLength.Long   => "Long (détaillé, 20+ lignes)",
         _                  => l.ToString()
     };
+
+    // ── SMS ───────────────────────────────────────────────────────────────────
+
+    public Task<string> BuildSmsSystemPromptAsync(CancellationToken ct = default)
+    {
+        return Task.FromResult("""
+Tu es un assistant commercial pour Oreo Studios, agence française spécialisée en développement web sur mesure, CRM et automatisation.
+
+Règles IMPÉRATIVES pour la rédaction SMS :
+1. Le message doit faire STRICTEMENT 160 caractères MAXIMUM (espaces compris).
+2. Commence par "Bonjour," suivi d'une accroche personnalisée basée sur l'activité de l'entreprise.
+3. Mentionne UNE opportunité concrète détectée sur leur site (manque formulaire, pas de HTTPS, site vieillissant, etc.).
+4. Termine par une courte invitation à rappeler ou à répondre.
+5. NE SIGNE PAS avec un nom — juste "Oreo Studios".
+6. Réponds UNIQUEMENT avec le texte du SMS, sans guillemets, sans JSON, sans explication.
+""");
+    }
+
+    public async Task<string> BuildSmsUserPromptAsync(
+        Guid leadId, GenerateSmsRequestDto request, CancellationToken ct = default)
+    {
+        var lead = await _db.Leads
+            .Include(l => l.WebsiteAnalyses)
+            .FirstOrDefaultAsync(l => l.Id == leadId, ct)
+            ?? throw new InvalidOperationException($"Lead {leadId} introuvable.");
+
+        var analysis = lead.WebsiteAnalyses.OrderByDescending(a => a.CreatedAt).FirstOrDefault();
+
+        var sb = new StringBuilder();
+
+        sb.AppendLine("=== PROSPECT ===");
+        sb.AppendLine($"Entreprise : {lead.CompanyName}");
+        if (!string.IsNullOrWhiteSpace(lead.Industry))  sb.AppendLine($"Secteur : {lead.Industry}");
+        if (!string.IsNullOrWhiteSpace(lead.City))      sb.AppendLine($"Ville : {lead.City}");
+        if (!string.IsNullOrWhiteSpace(lead.Website))   sb.AppendLine($"Site web : {lead.Website}");
+
+        if (analysis is not null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("=== ANALYSE DU SITE ===");
+            sb.AppendLine($"Score : {analysis.BusinessScore}/100");
+            sb.AppendLine($"HTTPS : {(analysis.UsesHttps ? "Oui" : "Non")}");
+            if (!string.IsNullOrWhiteSpace(analysis.CmsDetected))
+                sb.AppendLine($"CMS : {analysis.CmsDetected}");
+
+            if (!string.IsNullOrWhiteSpace(analysis.Recommendations))
+            {
+                try
+                {
+                    var opps = JsonSerializer.Deserialize<List<string>>(analysis.Recommendations);
+                    if (opps?.Count > 0)
+                    {
+                        sb.AppendLine("Opportunités :");
+                        foreach (var o in opps.Take(3))
+                            sb.AppendLine($"  - {o}");
+                    }
+                }
+                catch { /* ignore */ }
+            }
+
+            var oreoServices = BusinessRecommendationService.GetOreoServices(analysis, lead.Industry);
+            if (oreoServices.Count > 0)
+                sb.AppendLine($"Services recommandés : {string.Join(", ", oreoServices.Take(2))}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CustomInstructions))
+        {
+            sb.AppendLine();
+            sb.AppendLine("=== INSTRUCTIONS ===");
+            sb.AppendLine(request.CustomInstructions);
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Rédige un SMS de prospection de 160 caractères maximum pour ce prospect.");
+
+        return sb.ToString();
+    }
 
     private static string GetFallbackSystemPrompt() => """
 Tu es un assistant commercial pour Oreo Studios, agence française spécialisée en :

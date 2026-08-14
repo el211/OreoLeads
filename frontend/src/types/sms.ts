@@ -22,3 +22,16 @@ export interface SendSmsRequest {
   message: string
   scheduledAt?: string
 }
+
+export interface GenerateSmsRequest {
+  customInstructions?: string
+}
+
+export interface GenerateSmsResponse {
+  message: string
+  charCount: number
+  providerUsed: string
+  modelUsed: string
+  totalTokens: number
+  generationMs: number
+}

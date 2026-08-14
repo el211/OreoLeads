@@ -11,8 +11,9 @@ namespace OreoLeads.Api.Controllers;
 [ApiController]
 public class SmsController : ControllerBase
 {
-    private readonly ApplicationDbContext _db;
-    private readonly ISmsQueueService     _queueSvc;
+    private readonly ApplicationDbContext  _db;
+    private readonly ISmsQueueService      _queueSvc;
+    private readonly ISmsGeneratorService  _smsGenerator;
 
     // Personal/free email domains — leads using these have no professional email
     private static readonly HashSet<string> PersonalDomains = new(StringComparer.OrdinalIgnoreCase)
@@ -29,10 +30,32 @@ public class SmsController : ControllerBase
         "aol.com"
     };
 
-    public SmsController(ApplicationDbContext db, ISmsQueueService queueSvc)
+    public SmsController(ApplicationDbContext db, ISmsQueueService queueSvc, ISmsGeneratorService smsGenerator)
     {
-        _db       = db;
-        _queueSvc = queueSvc;
+        _db           = db;
+        _queueSvc     = queueSvc;
+        _smsGenerator = smsGenerator;
+    }
+
+    /// <summary>Generates an SMS message using AI based on the lead's website analysis.</summary>
+    [HttpPost("api/leads/{leadId:guid}/generate-sms")]
+    public async Task<IActionResult> GenerateSms(
+        Guid leadId,
+        [FromBody] GenerateSmsRequestDto dto,
+        CancellationToken ct)
+    {
+        var lead = await _db.Set<Lead>().FindAsync([leadId], ct);
+        if (lead is null) return NotFound();
+
+        try
+        {
+            var result = await _smsGenerator.GenerateAsync(leadId, dto, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     /// <summary>
