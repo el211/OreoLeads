@@ -54,6 +54,8 @@ export default function MasterPanelPage() {
   const [note, setNote]             = useState('')
   const [expiresInDays, setExpires] = useState('')
   const [copied, setCopied]         = useState<string | null>(null)
+  const [generateMsg, setGenerateMsg] = useState<string | null>(null)
+  const [generateErr, setGenerateErr] = useState<string | null>(null)
   const [newPasswordMap, setNewPasswordMap] = useState<Record<string, string>>({})
   const [impersonateMap, setImpersonateMap] = useState<Record<string, string>>({})
 
@@ -79,7 +81,7 @@ export default function MasterPanelPage() {
     enabled: authenticated,
   })
 
-  const { data: codes = [], isLoading: codesLoading } = useQuery<InviteCode[]>({
+  const { data: codes = [], isLoading: codesLoading, error: codesError } = useQuery<InviteCode[]>({
     queryKey: ['master-invite-codes', password],
     queryFn: async () => (await api.get('/invite-codes')).data,
     enabled: authenticated,
@@ -97,9 +99,16 @@ export default function MasterPanelPage() {
       note: note || null,
       expiresInDays: expiresInDays ? parseInt(expiresInDays) : null,
     })).data,
-    onSuccess: () => {
+    onSuccess: (data: { Id: string; Code: string }[]) => {
       qc.invalidateQueries({ queryKey: ['master-invite-codes'] })
       qc.invalidateQueries({ queryKey: ['master-stats'] })
+      setGenerateErr(null)
+      setGenerateMsg(`${data.length} code${data.length !== 1 ? 's' : ''} généré${data.length !== 1 ? 's' : ''} !`)
+      setTimeout(() => setGenerateMsg(null), 4000)
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      setGenerateErr(msg ?? 'Erreur lors de la génération des codes.')
     },
   })
 
@@ -264,18 +273,23 @@ export default function MasterPanelPage() {
                     className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
                 </div>
               </div>
-              <button onClick={() => generate.mutate()} disabled={generate.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60">
-                {generate.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Générer {count} code{count !== 1 ? 's' : ''}
-              </button>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button onClick={() => generate.mutate()} disabled={generate.isPending}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60">
+                  {generate.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Générer {count} code{count !== 1 ? 's' : ''}
+                </button>
+                {generateMsg && <span className="text-green-400 text-sm">{generateMsg}</span>}
+                {generateErr && <span className="text-red-400 text-sm">{generateErr}</span>}
+              </div>
             </div>
 
             {/* Unused */}
             <div className="space-y-2">
               <h2 className="text-base font-semibold text-gray-300">Codes disponibles ({unused.length})</h2>
               {codesLoading && <p className="text-gray-500 text-sm">Chargement…</p>}
-              {!codesLoading && unused.length === 0 && <p className="text-gray-600 text-sm">Aucun code disponible.</p>}
+              {codesError && <p className="text-red-400 text-sm">Erreur : {(codesError as Error).message}</p>}
+              {!codesLoading && !codesError && unused.length === 0 && <p className="text-gray-600 text-sm">Aucun code disponible.</p>}
               {unused.map(c => (
                 <div key={c.id} className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
                   <div className="flex items-center gap-4">
