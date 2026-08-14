@@ -41,8 +41,25 @@ internal class OpenAiProvider : IAiProvider
                      ?? throw new InvalidOperationException("OpenAI API key is missing.");
 
         var model = cfg.Model ?? "gpt-4o-mini";
-        var endpoint = !string.IsNullOrWhiteSpace(cfg.BaseUrl)
-            ? cfg.BaseUrl.TrimEnd('/') + "/chat/completions"
+
+        // GPT-5.x uses the Responses API (/v1/responses) instead of Chat Completions.
+        return IsResponsesApiModel(model)
+            ? await CompleteViaResponsesApiAsync(request, apiKey, model, cfg.BaseUrl, ct)
+            : await CompleteViaChatCompletionsAsync(request, apiKey, model, cfg.BaseUrl, ct);
+    }
+
+    private static bool IsResponsesApiModel(string model)
+        => model.StartsWith("gpt-5", StringComparison.OrdinalIgnoreCase)
+        || model.StartsWith("o3",    StringComparison.OrdinalIgnoreCase)
+        || model.StartsWith("o4",    StringComparison.OrdinalIgnoreCase);
+
+    // ── Chat Completions API (GPT-4o, GPT-4, etc.) ────────────────────────────
+
+    private async Task<AiCompletionResult> CompleteViaChatCompletionsAsync(
+        AiCompletionRequest request, string apiKey, string model, string? baseUrl, CancellationToken ct)
+    {
+        var endpoint = !string.IsNullOrWhiteSpace(baseUrl)
+            ? baseUrl.TrimEnd('/') + "/chat/completions"
             : BaseUrl;
 
         var body = new
@@ -81,6 +98,54 @@ internal class OpenAiProvider : IAiProvider
             GenerationMs: (int)sw.ElapsedMilliseconds);
     }
 
+    // ── Responses API (GPT-5.x) ───────────────────────────────────────────────
+
+    private async Task<AiCompletionResult> CompleteViaResponsesApiAsync(
+        AiCompletionRequest request, string apiKey, string model, string? baseUrl, CancellationToken ct)
+    {
+        var endpoint = !string.IsNullOrWhiteSpace(baseUrl)
+            ? baseUrl.TrimEnd('/') + "/responses"
+            : "https://api.openai.com/v1/responses";
+
+        var body = new
+        {
+            model,
+            max_output_tokens = request.MaxTokens,
+            input = new object[]
+            {
+                new { role = "developer", content = request.SystemPrompt },
+                new { role = "user",      content = request.UserPrompt  }
+            }
+        };
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        req.Content = JsonContent.Create(body);
+
+        var sw = Stopwatch.StartNew();
+        using var resp = await _http.SendAsync(req, ct);
+        sw.Stop();
+
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadFromJsonAsync<OpenAiResponsesApiResponse>(ct)
+                   ?? throw new InvalidOperationException("Empty response from OpenAI Responses API.");
+
+        // Extract text from output[0].content[0].text
+        var text = json.Output?
+            .SelectMany(o => o.Content ?? [])
+            .FirstOrDefault(c => c.Type == "output_text")
+            ?.Text ?? string.Empty;
+
+        return new AiCompletionResult(
+            Content: text,
+            Model: json.Model ?? model,
+            PromptTokens: json.Usage?.InputTokens ?? 0,
+            CompletionTokens: json.Usage?.OutputTokens ?? 0,
+            TotalTokens: json.Usage?.TotalTokens ?? 0,
+            GenerationMs: (int)sw.ElapsedMilliseconds);
+    }
+
     public async Task<bool> TestConnectionAsync(CancellationToken ct = default)
     {
         try
@@ -95,13 +160,13 @@ internal class OpenAiProvider : IAiProvider
         }
     }
 
-    // ── Internal response models ──────────────────────────────────────────────
+    // ── Chat Completions response models ──────────────────────────────────────
 
     private sealed class OpenAiResponse
     {
-        [JsonPropertyName("model")] public string? Model { get; set; }
+        [JsonPropertyName("model")]   public string?        Model   { get; set; }
         [JsonPropertyName("choices")] public OpenAiChoice[]? Choices { get; set; }
-        [JsonPropertyName("usage")] public OpenAiUsage? Usage { get; set; }
+        [JsonPropertyName("usage")]   public OpenAiUsage?   Usage   { get; set; }
     }
 
     private sealed class OpenAiChoice
@@ -116,8 +181,35 @@ internal class OpenAiProvider : IAiProvider
 
     private sealed class OpenAiUsage
     {
-        [JsonPropertyName("prompt_tokens")] public int PromptTokens { get; set; }
+        [JsonPropertyName("prompt_tokens")]     public int PromptTokens     { get; set; }
         [JsonPropertyName("completion_tokens")] public int CompletionTokens { get; set; }
-        [JsonPropertyName("total_tokens")] public int TotalTokens { get; set; }
+        [JsonPropertyName("total_tokens")]      public int TotalTokens      { get; set; }
+    }
+
+    // ── Responses API response models (GPT-5.x) ───────────────────────────────
+
+    private sealed class OpenAiResponsesApiResponse
+    {
+        [JsonPropertyName("model")]  public string?                   Model  { get; set; }
+        [JsonPropertyName("output")] public OpenAiResponsesOutput[]?  Output { get; set; }
+        [JsonPropertyName("usage")]  public OpenAiResponsesUsage?     Usage  { get; set; }
+    }
+
+    private sealed class OpenAiResponsesOutput
+    {
+        [JsonPropertyName("content")] public OpenAiResponsesContent[]? Content { get; set; }
+    }
+
+    private sealed class OpenAiResponsesContent
+    {
+        [JsonPropertyName("type")] public string? Type { get; set; }
+        [JsonPropertyName("text")] public string? Text { get; set; }
+    }
+
+    private sealed class OpenAiResponsesUsage
+    {
+        [JsonPropertyName("input_tokens")]  public int InputTokens  { get; set; }
+        [JsonPropertyName("output_tokens")] public int OutputTokens { get; set; }
+        [JsonPropertyName("total_tokens")]  public int TotalTokens  { get; set; }
     }
 }
