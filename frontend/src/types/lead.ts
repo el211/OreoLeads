@@ -108,6 +108,7 @@ export interface LeadFilter {
   hasWebsite?: boolean
   hasEmail?: boolean
   hasPhone?: boolean
+  hasMobilePhone?: boolean
   hasContact?: boolean
   minDaysSinceEmail?: number
   sortBy?: string

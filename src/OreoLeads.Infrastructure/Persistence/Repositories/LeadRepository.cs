@@ -209,6 +209,30 @@ public class LeadRepository : ILeadRepository
                 ? query.Where(l => l.Phone != null && l.Phone != string.Empty)
                 : query.Where(l => l.Phone == null || l.Phone == string.Empty);
 
+        if (filter.HasMobilePhone.HasValue)
+        {
+            // Portables FR : 06…, 07…, +336…, +337…, 00336…, 00337…
+            if (filter.HasMobilePhone.Value)
+                query = query.Where(l =>
+                    l.Phone != null && (
+                        l.Phone.StartsWith("06")    ||
+                        l.Phone.StartsWith("07")    ||
+                        l.Phone.StartsWith("+336")  ||
+                        l.Phone.StartsWith("+337")  ||
+                        l.Phone.StartsWith("00336") ||
+                        l.Phone.StartsWith("00337")));
+            else
+                // Fixe = a un téléphone mais ce n'est pas un portable
+                query = query.Where(l =>
+                    l.Phone != null && l.Phone != string.Empty &&
+                    !l.Phone.StartsWith("06")    &&
+                    !l.Phone.StartsWith("07")    &&
+                    !l.Phone.StartsWith("+336")  &&
+                    !l.Phone.StartsWith("+337")  &&
+                    !l.Phone.StartsWith("00336") &&
+                    !l.Phone.StartsWith("00337"));
+        }
+
         if (filter.HasContact == true)
             query = query.Where(l =>
                 (l.Phone != null && l.Phone != string.Empty) ||

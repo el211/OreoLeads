@@ -86,9 +86,10 @@ export function LeadsPage() {
       industry: (industry !== 'all' ? industry : undefined) ?? overrides.industry,
       legalForm: (legalForm !== 'all' ? legalForm : undefined) ?? overrides.legalForm,
       minDaysSinceEmail: overrides.minDaysSinceEmail ?? (relance !== '0' ? Number(relance) : undefined),
-      hasPhone:   overrides.hasPhone   ?? (contact === 'phone'   ? true : undefined),
-      hasEmail:   overrides.hasEmail   ?? (contact === 'email'   ? true : undefined),
-      hasContact: overrides.hasContact ?? (contact === 'contact' ? true : undefined),
+      hasPhone:       overrides.hasPhone       ?? (contact === 'phone'    ? true  : undefined),
+      hasMobilePhone: overrides.hasMobilePhone ?? (contact === 'mobile'   ? true  : contact === 'landline' ? false : undefined),
+      hasEmail:       overrides.hasEmail       ?? (contact === 'email'    ? true  : undefined),
+      hasContact:     overrides.hasContact     ?? (contact === 'contact'  ? true  : undefined),
       page: 1,
     }))
   }
@@ -429,16 +430,19 @@ export function LeadsPage() {
         <Select value={contact} onValueChange={v => {
           setContact(v)
           applyFilter({
-            hasPhone:   v === 'phone'   ? true : undefined,
-            hasEmail:   v === 'email'   ? true : undefined,
-            hasContact: v === 'contact' ? true : undefined,
+            hasPhone:        v === 'phone'    ? true  : undefined,
+            hasMobilePhone:  v === 'mobile'   ? true  : v === 'landline' ? false : undefined,
+            hasEmail:        v === 'email'    ? true  : undefined,
+            hasContact:      v === 'contact'  ? true  : undefined,
           })
         }}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Contact" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les contacts</SelectItem>
+            <SelectItem value="mobile">📱 Portable (06/07)</SelectItem>
+            <SelectItem value="landline">☎️ Fixe uniquement</SelectItem>
             <SelectItem value="phone">Avec téléphone</SelectItem>
             <SelectItem value="email">Avec email</SelectItem>
             <SelectItem value="contact">Téléphone ou email</SelectItem>

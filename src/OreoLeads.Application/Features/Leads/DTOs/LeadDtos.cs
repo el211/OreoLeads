@@ -132,6 +132,8 @@ public class LeadFilterDto
     public bool? HasWebsite { get; init; }
     public bool? HasEmail { get; init; }
     public bool? HasPhone { get; init; }
+    /// <summary>Portable uniquement (06/07/+336/+337). false = fixe uniquement.</summary>
+    public bool? HasMobilePhone { get; init; }
     /// <summary>Ne garde que les prospects qui ont un téléphone ou un email (au moins un moyen de contact).</summary>
     public bool? HasContact { get; init; }
     public Guid? TagId { get; init; }
