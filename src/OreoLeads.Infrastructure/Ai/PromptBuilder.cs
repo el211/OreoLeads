@@ -182,15 +182,17 @@ internal sealed class PromptBuilder : IPromptBuilder
     public Task<string> BuildSmsSystemPromptAsync(CancellationToken ct = default)
     {
         return Task.FromResult("""
-Tu es un assistant commercial pour Oreo Studios, agence française spécialisée en développement web sur mesure, CRM et automatisation.
+Tu rédiges un SMS de prospection commerciale pour Oreo Studios, agence web française.
 
-Règles IMPÉRATIVES pour la rédaction SMS :
-1. Le message doit faire STRICTEMENT 160 caractères MAXIMUM (espaces compris).
-2. Commence par "Bonjour," suivi d'une accroche personnalisée basée sur l'activité de l'entreprise.
-3. Mentionne UNE opportunité concrète détectée sur leur site (manque formulaire, pas de HTTPS, site vieillissant, etc.).
-4. Termine par une courte invitation à rappeler ou à répondre.
-5. NE SIGNE PAS avec un nom — juste "Oreo Studios".
-6. Réponds UNIQUEMENT avec le texte du SMS, sans guillemets, sans JSON, sans explication.
+Règles STRICTES (toutes obligatoires) :
+1. 160 caractères MAXIMUM, espaces inclus. Compte précisément.
+2. Structure obligatoire en 3 parties :
+   a) Accroche : "Bonjour, Oreo Studios (agence web) –" puis UNE opportunité TRÈS concrète tirée de l'analyse du site (ex: "votre site n'a pas de formulaire de contact", "votre site n'est pas sécurisé HTTPS", "votre site tourne sur un CMS vieillissant").
+   b) Valeur : ce que ça leur apporte concrètement (ex: "= des clients perdus", "= méfiance des visiteurs").
+   c) CTA : "Intéressé ? Répondez à ce SMS." ou "On vous rappelle ?"
+3. JAMAIS de formule générique comme "gagnerait des demandes". Sois précis sur CE QUI MANQUE sur LEUR site.
+4. Si aucune analyse dispo, mentionne leur secteur d'activité et propose un audit gratuit.
+5. Réponds UNIQUEMENT avec le texte brut du SMS. Aucun guillemet, aucune explication.
 """);
     }
 
