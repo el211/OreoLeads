@@ -12,6 +12,9 @@ internal sealed class StubBrevoService : IBrevoService
     public Task<string> SendEmailAsync(EmailSendRequest request, CancellationToken ct = default)
         => Task.FromResult("stub-message-id");
 
+    public Task<string> SendSmsAsync(SmsSendRequest request, CancellationToken ct = default)
+        => Task.FromResult("stub-sms-id");
+
     public Task SyncContactAsync(ContactSyncRequest request, CancellationToken ct = default)
         => Task.CompletedTask;
 }
