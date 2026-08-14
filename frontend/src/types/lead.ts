@@ -107,6 +107,8 @@ export interface LeadFilter {
   priority?: LeadPriority
   hasWebsite?: boolean
   hasEmail?: boolean
+  hasPhone?: boolean
+  hasContact?: boolean
   minDaysSinceEmail?: number
   sortBy?: string
   sortDesc?: boolean

@@ -131,6 +131,9 @@ public class LeadFilterDto
     public int? MaxScore { get; init; }
     public bool? HasWebsite { get; init; }
     public bool? HasEmail { get; init; }
+    public bool? HasPhone { get; init; }
+    /// <summary>Ne garde que les prospects qui ont un téléphone ou un email (au moins un moyen de contact).</summary>
+    public bool? HasContact { get; init; }
     public Guid? TagId { get; init; }
     /// <summary>Ne garde que les prospects dont le dernier e-mail envoyé date d'au moins N jours (candidats à relance).</summary>
     public int? MinDaysSinceEmail { get; init; }

@@ -204,6 +204,16 @@ public class LeadRepository : ILeadRepository
                 ? query.Where(l => l.Email != null && l.Email != string.Empty)
                 : query.Where(l => l.Email == null || l.Email == string.Empty);
 
+        if (filter.HasPhone.HasValue)
+            query = filter.HasPhone.Value
+                ? query.Where(l => l.Phone != null && l.Phone != string.Empty)
+                : query.Where(l => l.Phone == null || l.Phone == string.Empty);
+
+        if (filter.HasContact == true)
+            query = query.Where(l =>
+                (l.Phone != null && l.Phone != string.Empty) ||
+                (l.Email != null && l.Email != string.Empty));
+
         if (filter.TagId.HasValue)
             query = query.Where(l => l.LeadTags.Any(lt => lt.TagId == filter.TagId.Value));
 

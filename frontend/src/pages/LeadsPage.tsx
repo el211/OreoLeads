@@ -65,6 +65,7 @@ export function LeadsPage() {
   const [legalForm, setLegalForm] = useState('all')
   const [sort, setSort] = useState('createdat:desc')
   const [relance, setRelance] = useState('0')
+  const [contact, setContact] = useState('all')
   const [sorting, setSorting] = useState<SortingState>([])
 
   const { data, isLoading, isFetching } = useLeads(filter)
@@ -85,6 +86,9 @@ export function LeadsPage() {
       industry: (industry !== 'all' ? industry : undefined) ?? overrides.industry,
       legalForm: (legalForm !== 'all' ? legalForm : undefined) ?? overrides.legalForm,
       minDaysSinceEmail: overrides.minDaysSinceEmail ?? (relance !== '0' ? Number(relance) : undefined),
+      hasPhone:   overrides.hasPhone   ?? (contact === 'phone'   ? true : undefined),
+      hasEmail:   overrides.hasEmail   ?? (contact === 'email'   ? true : undefined),
+      hasContact: overrides.hasContact ?? (contact === 'contact' ? true : undefined),
       page: 1,
     }))
   }
@@ -421,6 +425,25 @@ export function LeadsPage() {
             </SelectContent>
           </Select>
         )}
+
+        <Select value={contact} onValueChange={v => {
+          setContact(v)
+          applyFilter({
+            hasPhone:   v === 'phone'   ? true : undefined,
+            hasEmail:   v === 'email'   ? true : undefined,
+            hasContact: v === 'contact' ? true : undefined,
+          })
+        }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Contact" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les contacts</SelectItem>
+            <SelectItem value="phone">Avec téléphone</SelectItem>
+            <SelectItem value="email">Avec email</SelectItem>
+            <SelectItem value="contact">Téléphone ou email</SelectItem>
+          </SelectContent>
+        </Select>
 
         <Select value={relance} onValueChange={v => {
           setRelance(v)
