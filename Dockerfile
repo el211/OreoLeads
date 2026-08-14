@@ -38,6 +38,7 @@ RUN apt-get update -qq \
        fi \
     && rm -rf /var/lib/apt/lists/* \
     && chmod -R a+rX /ms-playwright 2>/dev/null || true \
+    && chmod -R a+rX /app/.playwright  2>/dev/null || true \
     && mkdir -p /app/logs && chown -R $APP_UID /app/logs
 
 USER $APP_UID

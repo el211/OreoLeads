@@ -95,7 +95,7 @@ internal sealed class SmsSendBackgroundService : BackgroundService
             var request = new SmsSendRequest(
                 ApiKey:     brevoApiKey,
                 SenderName: "OreoLeads",
-                ToPhone:    job.ToPhone,
+                ToPhone:    NormalizePhone(job.ToPhone),
                 Message:    job.Message
             );
 
@@ -138,4 +138,29 @@ internal sealed class SmsSendBackgroundService : BackgroundService
 
     private static string TruncateMessage(string msg)
         => msg.Length > 50 ? msg[..47] + "..." : msg;
+
+    /// <summary>
+    /// Normalizes a French phone number to E.164 format required by Brevo.
+    /// "0612345678" → "+33612345678"
+    /// Already international → returned as-is.
+    /// </summary>
+    private static string NormalizePhone(string phone)
+    {
+        var digits = new string(phone.Where(char.IsDigit).ToArray());
+
+        // Already international: starts with + or country code
+        if (phone.TrimStart().StartsWith('+'))
+            return phone.Trim();
+
+        // French local format: 10 digits starting with 0
+        if (digits.Length == 10 && digits.StartsWith('0'))
+            return "+33" + digits[1..];
+
+        // Already has country code without +: e.g. "33612345678"
+        if (digits.Length == 11 && digits.StartsWith("33"))
+            return "+" + digits;
+
+        // Unknown format — return as-is, let Brevo reject it with a clear error
+        return phone.Trim();
+    }
 }
