@@ -343,6 +343,42 @@ try
             if (!app.Environment.IsDevelopment()) throw;
         }
 
+        // Idempotent safety net: ensure invite_codes and chat_messages tables
+        // exist regardless of migration history state.
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS invite_codes (
+                    id            uuid                     PRIMARY KEY,
+                    code          text                     NOT NULL,
+                    note          text,
+                    is_used       boolean                  NOT NULL DEFAULT false,
+                    used_by_email text,
+                    used_at       timestamp with time zone,
+                    expires_at    timestamp with time zone,
+                    created_at    timestamp with time zone NOT NULL,
+                    updated_at    timestamp with time zone
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ix_invite_codes_code ON invite_codes (code);
+
+                CREATE TABLE IF NOT EXISTS chat_messages (
+                    id          uuid                     PRIMARY KEY,
+                    user_id     text                     NOT NULL,
+                    author_name text                     NOT NULL,
+                    content     text                     NOT NULL,
+                    created_at  timestamp with time zone NOT NULL,
+                    updated_at  timestamp with time zone
+                );
+                CREATE INDEX IF NOT EXISTS ix_chat_messages_created_at ON chat_messages (created_at);
+            ");
+            logger.LogInformation("invite_codes and chat_messages tables ensured.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to ensure invite_codes/chat_messages tables.");
+            if (!app.Environment.IsDevelopment()) throw;
+        }
+
         // Seed Identity roles
         var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
         foreach (var role in new[] { "Admin", "Manager", "Sales" })
