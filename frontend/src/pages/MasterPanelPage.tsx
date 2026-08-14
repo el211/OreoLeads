@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, Trash2, Plus, RefreshCw, CheckCircle2, Lock, Users, BarChart3, ShieldOff, ShieldCheck, KeyRound, LogIn } from 'lucide-react'
+import { Copy, Trash2, Plus, RefreshCw, CheckCircle2, Lock, ShieldOff, ShieldCheck, KeyRound, LogIn } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
@@ -152,7 +152,7 @@ export default function MasterPanelPage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  function openImpersonation(userId: string, token: string) {
+  function openImpersonation(token: string) {
     const url = `${window.location.origin}/impersonate?token=${encodeURIComponent(token)}`
     window.open(url, '_blank')
   }
@@ -349,7 +349,7 @@ export default function MasterPanelPage() {
                     {impersonateMap[u.id] && (
                       <div className="mt-2 flex items-center gap-2">
                         <button
-                          onClick={() => openImpersonation(u.id, impersonateMap[u.id])}
+                          onClick={() => openImpersonation(impersonateMap[u.id])}
                           className="text-xs text-indigo-400 hover:text-indigo-300 underline"
                         >
                           Ouvrir en tant que {u.firstName} →

@@ -17,8 +17,6 @@ export default function ChatPage() {
   const qc = useQueryClient()
   const [text, setText] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
-  const lastSeenRef = useRef<string | null>(null)
-
   // Initial load — last 100 messages
   const { data: messages = [] } = useQuery<ChatMessage[]>({
     queryKey: ['chat-messages'],
