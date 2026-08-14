@@ -76,25 +76,30 @@ internal sealed class SmsSendBackgroundService : BackgroundService
         foreach (var job in pendingJobs)
         {
             if (ct.IsCancellationRequested) break;
-            await ProcessJobAsync(job, brevoSvc, brevoApiKey, queueSvc, db, ct);
+            await ProcessJobAsync(job, brevoSvc, brevoApiKey, brevoConfig, queueSvc, db, ct);
         }
     }
 
     private async Task ProcessJobAsync(
-        SmsSendJob           job,
-        IBrevoService        brevoSvc,
-        string               brevoApiKey,
-        ISmsQueueService     queueSvc,
-        ApplicationDbContext db,
-        CancellationToken    ct)
+        SmsSendJob              job,
+        IBrevoService           brevoSvc,
+        string                  brevoApiKey,
+        BrevoConfiguration      brevoConfig,
+        ISmsQueueService        queueSvc,
+        ApplicationDbContext    db,
+        CancellationToken       ct)
     {
         await queueSvc.MarkSendingAsync(job.Id, ct);
 
         try
         {
+            // SMS sender name: max 11 alphanumeric chars (carrier constraint).
+            // Use the configured sender name, stripped of spaces/special chars and capped.
+            var senderName = SanitizeSmsSender(brevoConfig.SenderName ?? "OreoStudios");
+
             var request = new SmsSendRequest(
                 ApiKey:     brevoApiKey,
-                SenderName: "OreoLeads",
+                SenderName: senderName,
                 ToPhone:    NormalizePhone(job.ToPhone),
                 Message:    job.Message
             );
@@ -134,6 +139,15 @@ internal sealed class SmsSendBackgroundService : BackgroundService
             _logger.LogError(ex, "Job {JobId}: failed to send SMS to {ToPhone}. CanRetry={CanRetry}",
                 job.Id, job.ToPhone, canRetry);
         }
+    }
+
+    /// <summary>
+    /// SMS sender names must be alphanumeric only and ≤ 11 characters.
+    /// </summary>
+    private static string SanitizeSmsSender(string name)
+    {
+        var clean = new string(name.Where(char.IsLetterOrDigit).ToArray());
+        return clean.Length > 11 ? clean[..11] : (clean.Length == 0 ? "OreoStudios" : clean);
     }
 
     private static string TruncateMessage(string msg)
