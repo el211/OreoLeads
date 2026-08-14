@@ -6,7 +6,7 @@ using OreoLeads.Infrastructure.Persistence;
 
 namespace OreoLeads.Infrastructure.Identity;
 
-public class MasterAdminService : IMasterAdminService
+internal class MasterAdminService : IMasterAdminService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationDbContext         _db;
