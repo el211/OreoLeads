@@ -131,11 +131,13 @@ internal class OpenAiProvider : IAiProvider
         var json = await resp.Content.ReadFromJsonAsync<OpenAiResponsesApiResponse>(ct)
                    ?? throw new InvalidOperationException("Empty response from OpenAI Responses API.");
 
-        // Extract text from output[0].content[0].text
-        var text = json.Output?
-            .SelectMany(o => o.Content ?? [])
-            .FirstOrDefault(c => c.Type == "output_text")
-            ?.Text ?? string.Empty;
+        // Concatenate all output_text chunks — the model may split across multiple items
+        var text = string.Concat(
+            json.Output?
+                .SelectMany(o => o.Content ?? [])
+                .Where(c => c.Type == "output_text")
+                .Select(c => c.Text ?? string.Empty)
+            ?? Enumerable.Empty<string>());
 
         return new AiCompletionResult(
             Content: text,
