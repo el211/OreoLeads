@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell, Tag, Building2, Search, Mail, Bot, FileText, Settings, LogOut, Database, GitMerge, AlertTriangle, History, Zap, Activity, BarChart3, TrendingUp, Monitor, Layers } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Tag, Building2, Search, Mail, Bot, FileText, Settings, LogOut, Database, GitMerge, AlertTriangle, History, Zap, Activity, BarChart3, TrendingUp, Monitor, Layers, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/leads', label: 'Prospects', icon: Users },
   { to: '/search', label: 'Recherche', icon: Search },
   { to: '/followups', label: 'Relances', icon: Bell },
+  { to: '/chat', label: 'Chat équipe', icon: MessageSquare },
   { to: '/emails', label: 'Brouillons IA', icon: Mail },
   { to: '/tags', label: 'Tags', icon: Tag },
 ]

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +8,7 @@ using OreoLeads.Application.Features.Ai.DTOs;
 using OreoLeads.Application.Features.Leads.DTOs;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Domain.Enums;
+using OreoLeads.Infrastructure.Persistence.Repositories;
 
 namespace OreoLeads.Api.Controllers;
 
@@ -22,6 +24,7 @@ public class LeadsController : ControllerBase
     private readonly IExcelExportService _exportService;
     private readonly IValidator<CreateLeadDto> _createValidator;
     private readonly IValidator<UpdateLeadDto> _updateValidator;
+    private readonly LeadNoteRepository _noteRepository;
 
     public LeadsController(
         ILeadRepository leadRepository,
@@ -30,7 +33,8 @@ public class LeadsController : ControllerBase
         ICsvImportService csvImportService,
         IExcelExportService exportService,
         IValidator<CreateLeadDto> createValidator,
-        IValidator<UpdateLeadDto> updateValidator)
+        IValidator<UpdateLeadDto> updateValidator,
+        LeadNoteRepository noteRepository)
     {
         _leadRepository = leadRepository;
         _activityRepository = activityRepository;
@@ -39,6 +43,7 @@ public class LeadsController : ControllerBase
         _exportService = exportService;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _noteRepository = noteRepository;
     }
 
     /// <summary>Recherche et liste les prospects avec filtres et pagination</summary>
@@ -104,11 +109,24 @@ public class LeadsController : ControllerBase
             await _tagRepository.AddTagToLeadAsync(created.Id, tagId, ct);
 
         // Log activity
+        var authorName = User.FindFirstValue(ClaimTypes.Name) ?? "Inconnu";
+        var authorId   = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
         await _activityRepository.AddAsync(new LeadActivity
         {
             LeadId = created.Id,
             Type = ActivityType.Created,
             Description = $"Prospect créé : {created.CompanyName}"
+        }, ct);
+
+        // Auto-note: who added this prospect
+        await _noteRepository.CreateAsync(new LeadNote
+        {
+            LeadId     = created.Id,
+            Title      = $"Ajouté par {authorName}",
+            Content    = $"Prospect ajouté par {authorName}.",
+            AuthorId   = authorId != null && Guid.TryParse(authorId, out var aid) ? aid : null,
+            AuthorName = authorName,
         }, ct);
 
         var result = await _leadRepository.GetByIdAsync(created.Id, ct);

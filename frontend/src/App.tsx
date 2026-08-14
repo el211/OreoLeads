@@ -35,6 +35,8 @@ import LoginPage from '@/pages/LoginPage'
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import MasterPanelPage from '@/pages/MasterPanelPage'
+import ImpersonatePage from '@/pages/ImpersonatePage'
+import ChatPage from '@/pages/ChatPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +63,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/master" element={<MasterPanelPage />} />
+            <Route path="/impersonate" element={<ImpersonatePage />} />
 
             {/* Protected */}
             <Route element={
@@ -74,6 +77,7 @@ function App() {
               <Route path="leads/:id" element={<LeadDetailPage />} />
               <Route path="leads/:id/edit" element={<EditLeadPage />} />
               <Route path="leads/:id/analysis" element={<LeadAnalysisPage />} />
+              <Route path="chat" element={<ChatPage />} />
               <Route path="followups" element={<FollowUpsPage />} />
               <Route path="tags" element={<TagsPage />} />
               <Route path="search" element={<SearchPage />} />

@@ -93,6 +93,7 @@ public static class ServiceCollectionExtensions
 
         // Services
         services.AddScoped<IInviteCodeService, InviteCodeService>();
+        services.AddScoped<IMasterAdminService, MasterAdminService>();
         services.AddScoped<ICsvImportService, CsvImportService>();
         services.AddScoped<IExcelExportService, ExcelExportService>();
         services.AddScoped<IDashboardService, DashboardService>();

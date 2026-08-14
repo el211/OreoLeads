@@ -14,12 +14,14 @@ namespace OreoLeads.Api.Controllers;
 [ApiExplorerSettings(IgnoreApi = true)]
 public class MasterController : ControllerBase
 {
-    private readonly IInviteCodeService _inviteCodes;
-    private readonly string             _masterPassword;
+    private readonly IInviteCodeService  _inviteCodes;
+    private readonly IMasterAdminService _admin;
+    private readonly string              _masterPassword;
 
-    public MasterController(IInviteCodeService inviteCodes, IConfiguration configuration)
+    public MasterController(IInviteCodeService inviteCodes, IMasterAdminService admin, IConfiguration configuration)
     {
         _inviteCodes    = inviteCodes;
+        _admin          = admin;
         _masterPassword = Environment.GetEnvironmentVariable("MASTER_PANEL_PASSWORD")
                           ?? configuration["MASTER_PANEL_PASSWORD"]
                           ?? string.Empty;
@@ -30,6 +32,77 @@ public class MasterController : ControllerBase
     [HttpPost("verify")]
     public IActionResult Verify([FromHeader(Name = "X-Master-Password")] string? password)
         => IsAuthorized(password) ? Ok(new { ok = true }) : Unauthorized(new { message = "Mot de passe incorrect." });
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats(
+        [FromHeader(Name = "X-Master-Password")] string? password,
+        CancellationToken ct)
+    {
+        if (!IsAuthorized(password)) return Unauthorized();
+        var stats = await _admin.GetStatsAsync(ct);
+        return Ok(stats);
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+
+    [HttpGet("users")]
+    public async Task<IActionResult> ListUsers(
+        [FromHeader(Name = "X-Master-Password")] string? password,
+        CancellationToken ct)
+    {
+        if (!IsAuthorized(password)) return Unauthorized();
+        var users = await _admin.GetUsersAsync(ct);
+        return Ok(users);
+    }
+
+    [HttpPost("users/{id}/ban")]
+    public async Task<IActionResult> BanUser(
+        [FromHeader(Name = "X-Master-Password")] string? password,
+        string id, CancellationToken ct)
+    {
+        if (!IsAuthorized(password)) return Unauthorized();
+        return await _admin.BanUserAsync(id, ct) ? Ok() : NotFound();
+    }
+
+    [HttpPost("users/{id}/unban")]
+    public async Task<IActionResult> UnbanUser(
+        [FromHeader(Name = "X-Master-Password")] string? password,
+        string id, CancellationToken ct)
+    {
+        if (!IsAuthorized(password)) return Unauthorized();
+        return await _admin.UnbanUserAsync(id, ct) ? Ok() : NotFound();
+    }
+
+    [HttpDelete("users/{id}")]
+    public async Task<IActionResult> DeleteUser(
+        [FromHeader(Name = "X-Master-Password")] string? password,
+        string id, CancellationToken ct)
+    {
+        if (!IsAuthorized(password)) return Unauthorized();
+        return await _admin.DeleteUserAsync(id, ct) ? NoContent() : NotFound();
+    }
+
+    [HttpPost("users/{id}/reset-password")]
+    public async Task<IActionResult> ResetPassword(
+        [FromHeader(Name = "X-Master-Password")] string? password,
+        string id, CancellationToken ct)
+    {
+        if (!IsAuthorized(password)) return Unauthorized();
+        var newPw = await _admin.ResetPasswordAsync(id, ct);
+        return newPw != null ? Ok(new { newPassword = newPw }) : NotFound();
+    }
+
+    [HttpPost("users/{id}/impersonate")]
+    public async Task<IActionResult> Impersonate(
+        [FromHeader(Name = "X-Master-Password")] string? password,
+        string id, CancellationToken ct)
+    {
+        if (!IsAuthorized(password)) return Unauthorized();
+        var token = await _admin.GenerateImpersonationTokenAsync(id, ct);
+        return token != null ? Ok(new { token }) : NotFound();
+    }
 
     // ── Invite codes ──────────────────────────────────────────────────────────
 

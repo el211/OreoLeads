@@ -1915,6 +1915,39 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.ToTable("follow_ups", (string)null);
                 });
 
+            modelBuilder.Entity("OreoLeads.Domain.Entities.ChatMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_chat_messages");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_chat_messages_created_at");
+
+                    b.ToTable("chat_messages", (string)null);
+                });
+
             modelBuilder.Entity("OreoLeads.Domain.Entities.InviteCode", b =>
                 {
                     b.Property<Guid>("Id")
