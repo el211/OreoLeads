@@ -31,6 +31,8 @@ import { AnalyticsForecastPage } from '@/pages/AnalyticsForecastPage'
 import { AnalyticsMonitoringPage } from '@/pages/AnalyticsMonitoringPage'
 import { AuthProvider } from '@/context/AuthContext'
 import PrivateRoute from '@/components/PrivateRoute'
+import RoleRoute from '@/components/RoleRoute'
+import { MarketingPage } from '@/pages/MarketingPage'
 import LoginPage from '@/pages/LoginPage'
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
@@ -100,6 +102,11 @@ function App() {
               <Route path="automation/builder/:id" element={<AutomationBuilderPage />} />
               <Route path="automation/history" element={<AutomationHistoryPage />} />
               <Route path="automation/monitoring" element={<AutomationMonitoringPage />} />
+              <Route path="marketing" element={
+                <RoleRoute role="marketing">
+                  <MarketingPage />
+                </RoleRoute>
+              } />
             </Route>
           </Routes>
         </BrowserRouter>
