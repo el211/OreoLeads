@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 	ProjectSection(SolutionItems) = preProject
-		src\Capture d’écran 2026-07-23 204147.png = src\Capture d’écran 2026-07-23 204147.png
+		src\Capture d’écran 2026-08-14 200132.png = src\Capture d’écran 2026-08-14 200132.png
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OreoLeads.Domain", "src\OreoLeads.Domain\OreoLeads.Domain.csproj", "{17C6D11E-FBC5-4247-86A9-50359E171BB5}"

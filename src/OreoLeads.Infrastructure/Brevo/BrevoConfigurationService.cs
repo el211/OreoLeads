@@ -86,7 +86,7 @@ internal sealed class BrevoConfigurationService : IBrevoConfigurationService
         // This is also what migrates any legacy CBC value stored in the DB:
         // the user saves → new GCM ciphertext replaces the old CBC one.
         if (!string.IsNullOrWhiteSpace(dto.ApiKey))
-            existing.EncryptedApiKey = _encryption.Encrypt(dto.ApiKey);
+            existing.EncryptedApiKey = _encryption.Encrypt(dto.ApiKey.Trim());
 
         if (!string.IsNullOrWhiteSpace(dto.WebhookSecret))
             existing.WebhookSecret = _encryption.Encrypt(dto.WebhookSecret);

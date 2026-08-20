@@ -21,7 +21,6 @@ internal sealed class ChangeStatusActionHandler : IActionHandler
         {
             if (context.LeadId is null)
                 return new ActionResultDto(false, null, "No LeadId in context", sw.ElapsedMilliseconds);
-
             if (string.IsNullOrWhiteSpace(configJson))
                 return new ActionResultDto(false, null, "No status configuration", sw.ElapsedMilliseconds);
 
