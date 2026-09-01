@@ -11,9 +11,14 @@ namespace OreoLeads.Api.Controllers;
 [ApiController]
 public class SmsController : ControllerBase
 {
-    private readonly ApplicationDbContext  _db;
-    private readonly ISmsQueueService      _queueSvc;
-    private readonly ISmsGeneratorService  _smsGenerator;
+    // Max length accepted for an SMS. Matches the AI generator cap and the
+    // frontend character counter. Brevo sends this as a concatenated (multi-part) SMS.
+    private const int MaxSmsLength = 320;
+
+    private readonly ApplicationDbContext        _db;
+    private readonly ISmsQueueService            _queueSvc;
+    private readonly ISmsGeneratorService        _smsGenerator;
+    private readonly IBrevoConfigurationService  _brevoConfig;
 
     // Personal/free email domains — leads using these have no professional email
     private static readonly HashSet<string> PersonalDomains = new(StringComparer.OrdinalIgnoreCase)
@@ -30,11 +35,16 @@ public class SmsController : ControllerBase
         "aol.com"
     };
 
-    public SmsController(ApplicationDbContext db, ISmsQueueService queueSvc, ISmsGeneratorService smsGenerator)
+    public SmsController(
+        ApplicationDbContext       db,
+        ISmsQueueService           queueSvc,
+        ISmsGeneratorService       smsGenerator,
+        IBrevoConfigurationService brevoConfig)
     {
         _db           = db;
         _queueSvc     = queueSvc;
         _smsGenerator = smsGenerator;
+        _brevoConfig  = brevoConfig;
     }
 
     /// <summary>Generates an SMS message using AI based on the lead's website analysis.</summary>
@@ -71,8 +81,8 @@ public class SmsController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.Message))
             return BadRequest("Le message SMS ne peut pas être vide.");
 
-        if (dto.Message.Length > 160)
-            return BadRequest("Le message SMS ne doit pas dépasser 160 caractères.");
+        if (dto.Message.Length > MaxSmsLength)
+            return BadRequest($"Le message SMS ne doit pas dépasser {MaxSmsLength} caractères.");
 
         var lead = await _db.Set<Lead>().FindAsync([leadId], ct);
         if (lead is null) return NotFound();
@@ -80,6 +90,15 @@ public class SmsController : ControllerBase
         var phone = dto.ToPhone.Trim();
         if (string.IsNullOrWhiteSpace(phone))
             return BadRequest("Numéro de téléphone manquant.");
+
+        // Fail fast if Brevo SMS isn't configured — otherwise the job would be
+        // queued but silently never sent by the background worker.
+        var brevoConfig = await _brevoConfig.GetCurrentAsync(ct);
+        if (brevoConfig is null || !brevoConfig.IsEnabled)
+            return BadRequest("L'intégration Brevo est désactivée. Activez-la dans les paramètres pour envoyer des SMS.");
+
+        if (string.IsNullOrWhiteSpace(_brevoConfig.GetDecryptedApiKey(brevoConfig)))
+            return BadRequest("La clé API Brevo est manquante. Renseignez-la dans les paramètres pour envoyer des SMS.");
 
         var job = await _queueSvc.QueueAsync(
             leadId:         leadId,

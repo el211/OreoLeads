@@ -47,7 +47,7 @@ internal sealed class SmsGeneratorService : ISmsGeneratorService
         var completion = await provider.CompleteAsync(
             new AiCompletionRequest(systemPrompt, userPrompt, MaxTokens: 800, Temperature: config.Temperature), ct);
 
-        // Clean up the response: strip quotes, trim whitespace, enforce 160-char limit
+        // Clean up the response: strip quotes, trim whitespace, enforce 320-char limit
         var message = completion.Content
             .Trim()
             .Trim('"', '\'')

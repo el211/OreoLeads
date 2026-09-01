@@ -1,9 +1,20 @@
 import { useState } from 'react'
-import { MessageSquare, Loader2, X, Send, Sparkles, RotateCcw } from 'lucide-react'
+import { MessageSquare, Loader2, X, Send, Sparkles, RotateCcw, AlertCircle } from 'lucide-react'
+import { isAxiosError } from 'axios'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useSendSms, useGenerateSms } from '@/hooks/useSms'
+
+function errorMessage(err: unknown): string {
+  if (isAxiosError(err)) {
+    const data = err.response?.data
+    if (typeof data === 'string' && data.trim()) return data
+    if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string') return data.message
+    return err.message
+  }
+  return err instanceof Error ? err.message : 'Une erreur inattendue est survenue.'
+}
 
 interface SmsComposeModalProps {
   leadId: string
@@ -20,6 +31,7 @@ export function SmsComposeModal({ leadId, defaultPhone, companyName, onClose }: 
   const [customInstructions, setCustom]     = useState('')
   const [showCustom, setShowCustom]         = useState(false)
   const [aiInfo, setAiInfo]                 = useState<{ provider: string; model: string; ms: number } | null>(null)
+  const [error, setError]                   = useState<string | null>(null)
 
   const sendSms    = useSendSms(leadId)
   const generateSms = useGenerateSms(leadId)
@@ -28,15 +40,25 @@ export function SmsComposeModal({ leadId, defaultPhone, companyName, onClose }: 
   const canSend   = phone.trim().length > 0 && message.trim().length > 0 && remaining >= 0
 
   const handleGenerate = async () => {
-    const result = await generateSms.mutateAsync({ customInstructions: customInstructions || undefined })
-    setMessage(result.message)
-    setAiInfo({ provider: result.providerUsed, model: result.modelUsed, ms: result.generationMs })
+    setError(null)
+    try {
+      const result = await generateSms.mutateAsync({ customInstructions: customInstructions || undefined })
+      setMessage(result.message)
+      setAiInfo({ provider: result.providerUsed, model: result.modelUsed, ms: result.generationMs })
+    } catch (err) {
+      setError(errorMessage(err))
+    }
   }
 
   const handleSend = async () => {
     if (!canSend) return
-    await sendSms.mutateAsync({ toPhone: phone.trim(), message })
-    onClose()
+    setError(null)
+    try {
+      await sendSms.mutateAsync({ toPhone: phone.trim(), message })
+      onClose()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
   }
 
   return (
@@ -147,6 +169,14 @@ export function SmsComposeModal({ leadId, defaultPhone, companyName, onClose }: 
             )}
           </div>
         </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="mx-4 mb-2 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex justify-end gap-2 p-4 border-t">
