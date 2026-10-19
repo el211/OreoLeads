@@ -9,6 +9,38 @@ namespace OreoLeads.Tests.Search;
 
 public class OpenDataGouvSourceTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SendsDocumentedActivityAndAdministrativeFilters(bool activeOnly)
+    {
+        string? url = null;
+        var handler = new CapturingHandler(req => url = req.RequestUri!.ToString(), Wrap(""));
+        var source = new OpenDataGouvSource(new HttpClient(handler), NullLogger<OpenDataGouvSource>.Instance);
+        await source.SearchAsync(new CompanySearchRequestDto
+        {
+            NafCode = " 56.10A ", PostalCode = "67000", ActiveOnly = activeOnly
+        });
+        Assert.Contains("activite_principale=56.10A", url);
+        Assert.Contains("code_postal=67000", url);
+        Assert.Equal(activeOnly, url!.Contains("etat_administratif=A"));
+        Assert.DoesNotContain("code_naf=", url);
+        Assert.DoesNotContain("est_active=", url);
+    }
+
+    [Theory]
+    [InlineData("{\"erreur\":\"Veuillez indiquer au moins un paramètre de recherche.\"}", "Veuillez indiquer")]
+    [InlineData("<html>Bad gateway</html>", "HTTP 400")]
+    public async Task FailedSearchIncludesRegistryDiagnostic(string body, string expected)
+    {
+        var handler = new CapturingHandler(_ => { }, body, HttpStatusCode.BadRequest);
+        var source = new OpenDataGouvSource(new HttpClient(handler), NullLogger<OpenDataGouvSource>.Instance);
+        var error = await Assert.ThrowsAsync<HttpRequestException>(() => source.SearchAsync(new()));
+        Assert.Equal(HttpStatusCode.BadRequest, error.StatusCode);
+        Assert.Contains(expected, error.Message);
+        Assert.DoesNotContain("<html>", error.Message);
+    }
+
     // ── EI avec enseigne : l'enseigne prime sur tout ──────────────────────────
     [Fact]
     public async Task Maps_EI_WithEnseigne_UsesEnseigneAsName()
@@ -167,18 +199,20 @@ public class OpenDataGouvSourceTests
     {
         private readonly Action<HttpRequestMessage> _capture;
         private readonly string _body;
+        private readonly HttpStatusCode _status;
 
-        public CapturingHandler(Action<HttpRequestMessage> capture, string body)
+        public CapturingHandler(Action<HttpRequestMessage> capture, string body, HttpStatusCode status = HttpStatusCode.OK)
         {
             _capture = capture;
             _body = body;
+            _status = status;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             _capture(request);
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return Task.FromResult(new HttpResponseMessage(_status)
             {
                 Content = new StringContent(_body, Encoding.UTF8, "application/json"),
             });

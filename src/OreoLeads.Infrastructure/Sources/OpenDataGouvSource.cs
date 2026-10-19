@@ -39,11 +39,11 @@ public class OpenDataGouvSource : ILeadSource
     {
         var queryParts = new List<string>();
         if (!string.IsNullOrWhiteSpace(request.Keywords)) queryParts.Add($"q={Uri.EscapeDataString(request.Keywords)}");
-        if (!string.IsNullOrWhiteSpace(request.NafCode)) queryParts.Add($"code_naf={Uri.EscapeDataString(request.NafCode)}");
+        if (!string.IsNullOrWhiteSpace(request.NafCode)) queryParts.Add($"activite_principale={Uri.EscapeDataString(request.NafCode.Trim())}");
         if (!string.IsNullOrWhiteSpace(request.Department)) queryParts.Add($"departement={Uri.EscapeDataString(request.Department)}");
         if (!string.IsNullOrWhiteSpace(request.Region)) queryParts.Add($"region={Uri.EscapeDataString(request.Region)}");
         if (!string.IsNullOrWhiteSpace(request.PostalCode)) queryParts.Add($"code_postal={Uri.EscapeDataString(request.PostalCode)}");
-        if (request.ActiveOnly) queryParts.Add("est_active=true");
+        if (request.ActiveOnly) queryParts.Add("etat_administratif=A");
         if (request.OnlyIndividualEntrepreneurs) queryParts.Add("est_entrepreneur_individuel=true");
         if (request.NatureJuridiqueCodes is { Count: > 0 })
             queryParts.Add($"nature_juridique={Uri.EscapeDataString(string.Join(",", request.NatureJuridiqueCodes))}");
@@ -56,7 +56,24 @@ public class OpenDataGouvSource : ILeadSource
         GouvApiResponse? response;
         try
         {
-            response = await _http.GetFromJsonAsync<GouvApiResponse>(url,
+            using var httpResponse = await _http.GetAsync(url, ct);
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                string? detail = null;
+                try
+                {
+                    using var error = JsonDocument.Parse(await httpResponse.Content.ReadAsStringAsync(ct));
+                    if (error.RootElement.ValueKind == JsonValueKind.Object &&
+                        error.RootElement.TryGetProperty("erreur", out var message) && message.ValueKind == JsonValueKind.String)
+                        detail = message.GetString();
+                }
+                catch (JsonException) { /* Non-JSON gateway errors still retain their HTTP status. */ }
+                if (detail?.Length > 500) detail = detail[..500];
+                throw new HttpRequestException(
+                    $"Registre des entreprises — HTTP {(int)httpResponse.StatusCode}" +
+                    (string.IsNullOrWhiteSpace(detail) ? "." : $" : {detail}"), null, httpResponse.StatusCode);
+            }
+            response = await httpResponse.Content.ReadFromJsonAsync<GouvApiResponse>(
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
                 ct);
         }
