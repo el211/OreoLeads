@@ -10,8 +10,8 @@ namespace OreoLeads.Tests.Enrichment;
 public class WebsiteDiscoveryServiceTests
 {
     // URLs à IP publique littérale : passent le garde SSRF sans résolution DNS.
-    private const string Candidate1 = "http://203.0.113.10/";
-    private const string Candidate2 = "http://203.0.113.20/";
+    private const string Candidate1 = "http://8.8.8.10/";
+    private const string Candidate2 = "http://8.8.8.20/";
 
     private static Lead SampleLead() => new()
     {

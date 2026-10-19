@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { OutreachReviewPanel } from '@/components/enrichment/OutreachReviewPanel'
 
 const STATUS_STYLES: Record<EmailDraftStatus, string> = {
   Generated: 'bg-blue-100 text-blue-800',
@@ -126,7 +127,7 @@ export function EmailEditorPage() {
               size="sm"
               className="bg-green-600 hover:bg-green-700 text-white"
               onClick={() => approve.mutate()}
-              disabled={approve.isPending}
+              disabled={approve.isPending || isDirty}
             >
               <CheckCircle2 className="h-4 w-4 mr-1" />Approuver
             </Button>
@@ -144,6 +145,9 @@ export function EmailEditorPage() {
         </div>
       </div>
 
+      <OutreachReviewPanel draftId={id!} disabled={draft.status === 'Sent' || isDirty} />
+      {isDirty && <p className="text-sm">Enregistrez les modifications avant la revue et l’approbation.</p>}
+      {approve.error && <p role="alert" className="text-destructive">{(approve.error as { response?: { data?: { error?: string } } }).response?.data?.error ?? approve.error.message}</p>}
       {/* Approval notice + Send button */}
       {draft.status === 'Approved' && (
         <div className="rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-300 flex items-center justify-between gap-2">
@@ -158,12 +162,12 @@ export function EmailEditorPage() {
             onClick={async () => {
               try {
                 await sendEmail.mutateAsync()
-                alert('Email envoyé avec succès !')
+                alert('Email mis en file d’attente. La livraison reste soumise aux contrôles de suppression et d’approbation.')
               } catch (err: any) {
                 const serverMsg =
                   typeof err?.response?.data === 'string'
                     ? err.response.data
-                    : err?.response?.data?.message ?? err?.message
+                    : err?.response?.data?.error ?? err?.response?.data?.message ?? err?.message
                 alert(`Erreur lors de l'envoi : ${serverMsg ?? 'erreur inconnue'}`)
               }
             }}

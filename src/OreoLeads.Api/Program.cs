@@ -264,6 +264,7 @@ try
     }
 
     // ── TenantContext middleware — wire OrganizationId into EF query filters ──
+    app.UseAuthentication();
     app.Use(async (context, next) =>
     {
         var tenantCtx = context.RequestServices.GetRequiredService<TenantContext>();
@@ -287,7 +288,7 @@ try
 
     app.UseRateLimiter();
     app.UseCors("AllowFrontend");
-    app.UseAuthentication();
+
     app.UseAuthorization();
     app.MapControllers();
 

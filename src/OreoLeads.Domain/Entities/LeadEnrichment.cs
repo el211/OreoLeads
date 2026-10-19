@@ -45,6 +45,7 @@ public class LeadEnrichment : BaseEntity
 
     // ── Coût / traçabilité ────────────────────────────────────────────────────
     public int SearchQueriesUsed { get; set; }
+    public string? InspectionJson { get; set; }
     public bool AutoApplied { get; set; }
     public DateTime? ValidatedAt { get; set; }
     public Guid? ValidatedByUserId { get; set; }

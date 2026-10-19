@@ -23,6 +23,13 @@ internal sealed class EmailQueueService : IEmailQueueService
         Guid?     organizationId,
         CancellationToken ct = default)
     {
+        await using var transaction = _db.Database.IsRelational() && _db.Database.CurrentTransaction == null
+            ? await _db.Database.BeginTransactionAsync(ct) : null;
+        if (_db.Database.IsRelational())
+            await _db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(713980125)", ct);
+        var existing = await _db.EmailSendJobs.FirstOrDefaultAsync(j => j.GeneratedEmailId == generatedEmailId &&
+            (j.Status == EmailSendStatus.Pending || j.Status == EmailSendStatus.Sending || j.Status == EmailSendStatus.Sent), ct);
+        if (existing != null) return existing;
         var job = new EmailSendJob
         {
             GeneratedEmailId = generatedEmailId,
@@ -38,6 +45,7 @@ internal sealed class EmailQueueService : IEmailQueueService
 
         _db.Set<EmailSendJob>().Add(job);
         await _db.SaveChangesAsync(ct);
+        if (transaction != null) await transaction.CommitAsync(ct);
         return job;
     }
 

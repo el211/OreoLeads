@@ -73,3 +73,5 @@ dotnet test    # 342 tests (unit + integration)
 ## Licence
 
 Proprietary -- Oreo Studios.
+
+- [Prospecting implementation and deployment](docs/PROSPECTING.md) — campaign APIs, configuration, validation and remaining scope.

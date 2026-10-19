@@ -93,7 +93,9 @@ public class EmailDraftsController : ControllerBase
     // ── POST /api/emails/{id}/approve ─────────────────────────────────────────
 
     [HttpPost("{id:guid}/approve")]
-    public async Task<IActionResult> Approve(Guid id)
+    public async Task<IActionResult> Approve(Guid id,
+        [FromServices] OreoLeads.Infrastructure.Persistence.ApplicationDbContext db,
+        [FromServices] ICurrentUserService user, CancellationToken ct)
     {
         var draft = await _repo.GetByIdAsync(id);
         if (draft is null) return NotFound();
@@ -104,6 +106,16 @@ public class EmailDraftsController : ControllerBase
         if (draft.Status == EmailStatus.Sent)
             return BadRequest("Cet email a déjà été envoyé.");
 
+        if (user.OrganizationId is not { } org || user.UserId is not { } userId || draft.OrganizationId != org) return Forbid();
+        var block = await OreoLeads.Infrastructure.Brevo.OutreachGuard.ReviewBlockReasonAsync(db, draft, draft.Lead.Email ?? "", false, ct);
+        if (block != null) return BadRequest(new { error = block });
+        if (draft.RequiresOutreachReview)
+        {
+            var review = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(db.OutreachReviews.Where(r => r.EmailDraftId == id && r.OrganizationId == org), ct);
+            review.ApprovedAt = DateTime.UtcNow;
+            review.ApprovedByUserId = userId;
+        }
+        db.AuditLogs.Add(new() { OrganizationId = org, UserId = userId, Action = "EmailApproved", EntityName = "GeneratedEmail", EntityId = id.ToString(), NewValues = System.Text.Json.JsonSerializer.Serialize(new { contentHash = OreoLeads.Infrastructure.Brevo.OutreachReviewService.ContentHash(draft.Subject, draft.Body, draft.Lead.Email ?? "") }) });
         draft.Status = EmailStatus.Approved;
         draft.SetUpdatedAt();
         await _repo.UpdateAsync(draft);

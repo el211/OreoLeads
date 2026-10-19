@@ -108,3 +108,7 @@ Common status codes: `400` (validation), `401` (unauthenticated),
 | GET `/health` | Full health status (JSON) |
 | GET `/health/ready` | Readiness probe (DB connected) |
 | GET `/health/live` | Liveness probe (process alive) |
+
+## Automated prospecting
+
+See [prospecting endpoints and configuration](docs/PROSPECTING.md#endpoints).

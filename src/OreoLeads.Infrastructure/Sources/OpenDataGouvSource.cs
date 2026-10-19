@@ -63,7 +63,7 @@ public class OpenDataGouvSource : ILeadSource
         catch (Exception ex)
         {
             _logger.LogError(ex, "OpenDataGouv API error for URL: {Url}", url);
-            return (new List<CompanySearchResultDto>(), 0, 0);
+            throw;
         }
 
         if (response?.Results == null) return (new List<CompanySearchResultDto>(), 0, 0);
@@ -75,6 +75,11 @@ public class OpenDataGouvSource : ILeadSource
             // On ne rejette que les lignes inexploitables : ni nom, ni SIREN
             .Where(r => !string.IsNullOrWhiteSpace(r.CompanyName) || !string.IsNullOrWhiteSpace(r.Siren))
             .ToList();
+
+        if (request.MinimumEmployees is { } min)
+            results = results.Where(r => r.EmployeeCount >= min).ToList();
+        if (request.MaximumEmployees is { } max)
+            results = results.Where(r => r.EmployeeCount <= max).ToList();
 
         // Filtrage entrepreneurs individuels côté client
         if (!request.IncludeIndividualEntrepreneurs)

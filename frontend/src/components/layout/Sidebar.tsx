@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 
 const navItems = [
+  { to: '/prospecting', label: 'Prospection automatique', icon: Search },
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/leads', label: 'Prospects', icon: Users },
   { to: '/search', label: 'Recherche', icon: Search },

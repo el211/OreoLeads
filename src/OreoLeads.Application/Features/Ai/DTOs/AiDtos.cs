@@ -52,6 +52,9 @@ public record AiTestResultDto(
 
 public class GenerateEmailRequestDto
 {
+    public bool EvidenceOnly { get; init; }
+    [System.ComponentModel.DataAnnotations.RegularExpression("^(fr|en|es|de)$")]
+    public string Language { get; init; } = "fr";
     public EmailStyle Style { get; init; } = EmailStyle.Professional;
     public EmailLength Length { get; init; } = EmailLength.Normal;
     public EmailType Type { get; init; } = EmailType.FirstContact;

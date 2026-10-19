@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using OreoLeads.Application.Common;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -84,10 +85,12 @@ public class SearchService : ISearchService
         var existingBySiren = await _context.Leads
             .AsNoTracking()
             .Where(l => sirens.Contains(l.Siren!))
+            .GroupBy(l => l.Siren).Select(g => g.First())
             .ToDictionaryAsync(l => l.Siren!, ct);
         var existingBySiret = await _context.Leads
             .AsNoTracking()
             .Where(l => sirets.Contains(l.Siret!))
+            .GroupBy(l => l.Siret).Select(g => g.First())
             .ToDictionaryAsync(l => l.Siret!, ct);
 
         foreach (var result in allResults)
@@ -139,7 +142,14 @@ public class SearchService : ISearchService
     public async Task<SearchImportResultDto> ImportAsync(
         SearchImportRequestDto request, CancellationToken ct = default)
     {
+        await using var transaction = _context.Database.IsRelational() && _context.Database.CurrentTransaction == null
+            ? await _context.Database.BeginTransactionAsync(ct) : null;
+        if (_context.Database.IsRelational())
+            await _context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(713980124)", ct);
         var result = new SearchImportResultDto();
+        var domains = request.Companies.Select(c => CompanyIdentity.Domain(c.Website)).Where(d => d != null).ToList();
+        var byDomain = (await _context.Leads.Where(l => domains.Contains(l.WebsiteDomain)).ToListAsync(ct))
+            .GroupBy(l => l.WebsiteDomain!).ToDictionary(g => g.Key, g => g.First());
 
         // Bulk preload — avoid N+1 per-company DB lookups
         var sirensToCheck = request.Companies
@@ -155,9 +165,11 @@ public class SearchService : ISearchService
 
         var existingBySiren = await _context.Leads
             .Where(l => sirensToCheck.Contains(l.Siren!))
+            .GroupBy(l => l.Siren).Select(g => g.First())
             .ToDictionaryAsync(l => l.Siren!, ct);
         var existingBySiret = await _context.Leads
             .Where(l => siretsToCheck.Contains(l.Siret!))
+            .GroupBy(l => l.Siret).Select(g => g.First())
             .ToDictionaryAsync(l => l.Siret!, ct);
 
         // In-memory duplicate tracker for the current batch (prevents double-add within same import)
@@ -174,6 +186,8 @@ public class SearchService : ISearchService
                     existingBySiren.TryGetValue(company.Siren, out existing);
                 if (existing == null && !string.IsNullOrWhiteSpace(company.Siret))
                     existingBySiret.TryGetValue(company.Siret, out existing);
+                var domain = CompanyIdentity.Domain(company.Website);
+                if (existing == null && domain != null) byDomain.TryGetValue(domain, out existing);
 
                 // Check in-batch duplicates
                 var inBatchDuplicate =
@@ -202,6 +216,7 @@ public class SearchService : ISearchService
                 {
                     var lead = new Lead
                     {
+                        OrganizationId = _context.CurrentOrganizationId,
                         CompanyName = company.CompanyName,
                         TradeName = company.TradeName,
                         IsIndividualEntrepreneur = company.IsIndividualEntrepreneur,
@@ -230,6 +245,7 @@ public class SearchService : ISearchService
                     };
 
                     _context.Leads.Add(lead);
+                    if (domain != null) byDomain[domain] = lead;
                     result.NewLeadIds.Add(lead.Id);
                     result.NewLeads++;
 
@@ -256,7 +272,7 @@ public class SearchService : ISearchService
             {
                 try
                 {
-                    await _enrichmentQueue.QueueAsync(newLeadId, organizationId: null, force: false, ct);
+                    await _enrichmentQueue.QueueAsync(newLeadId, organizationId: _context.CurrentOrganizationId, force: false, ct);
                 }
                 catch (Exception ex)
                 {
@@ -279,6 +295,7 @@ public class SearchService : ISearchService
             }
         }
 
+        if (transaction != null) await transaction.CommitAsync(ct);
         return result;
     }
 

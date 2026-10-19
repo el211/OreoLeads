@@ -7,6 +7,10 @@ public class GeneratedEmail : BaseEntity
 {
     public Guid LeadId { get; set; }
     public Guid? OrganizationId { get; set; }
+    public bool RequiresOutreachReview { get; set; }
+    public string Language { get; set; } = "fr";
+    public bool EvidenceOnly { get; set; }
+    public string? GenerationInstructions { get; set; }
 
     // Content
     public string Subject { get; set; } = string.Empty;

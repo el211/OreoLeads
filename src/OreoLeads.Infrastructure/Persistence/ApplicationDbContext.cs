@@ -22,6 +22,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     }
 
     public DbSet<Lead> Leads => Set<Lead>();
+    public DbSet<ProspectingCampaign> ProspectingCampaigns => Set<ProspectingCampaign>();
+    public DbSet<OutreachReview> OutreachReviews => Set<OutreachReview>();
+    public DbSet<CampaignProspect> CampaignProspects => Set<CampaignProspect>();
+    public DbSet<CampaignExecution> CampaignExecutions => Set<CampaignExecution>();
+    public Guid? CurrentOrganizationId => _tenant.OrganizationId;
     public DbSet<LeadActivity> LeadActivities => Set<LeadActivity>();
     public DbSet<LeadNote> LeadNotes => Set<LeadNote>();
     public DbSet<FollowUp> FollowUps => Set<FollowUp>();
@@ -77,6 +82,34 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        modelBuilder.Entity<OutreachReview>(b =>
+        {
+            b.HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+            b.HasIndex(e => e.EmailDraftId).IsUnique();
+            b.HasOne<GeneratedEmail>().WithMany().HasForeignKey(e => e.EmailDraftId).OnDelete(DeleteBehavior.Cascade);
+            b.Property(e => e.BasisEvidence).HasMaxLength(2000);
+            b.Property(e => e.SenderIdentification).HasMaxLength(500);
+        });
+        modelBuilder.Entity<Lead>().HasIndex(e => new { e.OrganizationId, e.WebsiteDomain });
+        modelBuilder.Entity<ProspectingCampaign>(b =>
+        {
+            b.HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+            b.HasIndex(e => new { e.Status, e.NextRunAt });
+            b.Property(e => e.Name).HasMaxLength(200);
+        });
+        modelBuilder.Entity<CampaignProspect>(b =>
+        {
+            b.HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+            b.HasIndex(e => new { e.CampaignId, e.LeadId }).IsUnique();
+            b.HasOne<ProspectingCampaign>().WithMany().HasForeignKey(e => e.CampaignId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne<Lead>().WithMany().HasForeignKey(e => e.LeadId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<CampaignExecution>(b =>
+        {
+            b.HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+            b.HasIndex(e => new { e.CampaignId, e.CreatedAt });
+            b.HasOne<ProspectingCampaign>().WithMany().HasForeignKey(e => e.CampaignId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         // Multi-tenant query filters — evaluated per-request using TenantContext.
         // When OrganizationId is null (no tenant set), all rows are visible (admin / migrations).
@@ -154,5 +187,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
         modelBuilder.Entity<AnalyticsForecast>()
             .HasQueryFilter(e => !_tenant.OrganizationId.HasValue || e.OrganizationId == _tenant.OrganizationId);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in ChangeTracker.Entries<Lead>().Where(e => e.State is EntityState.Added or EntityState.Modified))
+            entry.Entity.WebsiteDomain = OreoLeads.Application.Common.CompanyIdentity.Domain(entry.Entity.Website);
+        return base.SaveChangesAsync(cancellationToken);
     }
 }

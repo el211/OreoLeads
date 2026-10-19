@@ -41,6 +41,13 @@ internal sealed class EnrichmentQueueService : IEnrichmentQueueService
     public async Task<List<LeadEnrichment>> GetPendingAsync(int limit = 5, CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
+        if (_db.Database.IsRelational())
+        {
+            var expired = now.AddMinutes(-15);
+            await _db.LeadEnrichments.Where(e => e.Status == EnrichmentStatus.Running && e.StartedAt < expired)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.Status, EnrichmentStatus.Pending)
+                    .SetProperty(e => e.NextAttemptAt, now), ct);
+        }
         return await _db.LeadEnrichments
             .Where(e =>
                 e.Status == EnrichmentStatus.Pending &&

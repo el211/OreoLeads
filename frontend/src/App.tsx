@@ -1,3 +1,4 @@
+import { ProspectingPage } from '@/pages/ProspectingPage'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -82,7 +83,7 @@ function App() {
               <Route path="chat" element={<ChatPage />} />
               <Route path="followups" element={<FollowUpsPage />} />
               <Route path="tags" element={<TagsPage />} />
-              <Route path="search" element={<SearchPage />} />
+              <Route path="search" element={<SearchPage />} /><Route path="prospecting" element={<ProspectingPage />} />
               <Route path="search/history" element={<SearchHistoryPage />} />
               <Route path="emails" element={<EmailDraftsPage />} />
               <Route path="emails/:id" element={<EmailEditorPage />} />

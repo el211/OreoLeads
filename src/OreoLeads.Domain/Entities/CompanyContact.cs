@@ -11,6 +11,11 @@ public class CompanyContact : BaseEntity
     public string? Phone { get; set; }
     public string? Position { get; set; }
     public bool IsMain { get; set; } = false;
+    public string? SourceUrl { get; set; }
+    public string? ProfileUrl { get; set; }
+    public double Confidence { get; set; }
+    public string VerificationStatus { get; set; } = "Unknown";
+    public DateTime? ObservedAt { get; set; }
 
     // Navigation
     public Lead Lead { get; set; } = null!;

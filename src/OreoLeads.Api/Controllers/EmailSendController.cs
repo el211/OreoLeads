@@ -9,15 +9,18 @@ using OreoLeads.Infrastructure.Persistence;
 namespace OreoLeads.Api.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize]
 public class EmailSendController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
     private readonly IEmailQueueService   _queueSvc;
+    private readonly int _frequencyCapDays;
 
-    public EmailSendController(ApplicationDbContext db, IEmailQueueService queueSvc)
+    public EmailSendController(ApplicationDbContext db, IEmailQueueService queueSvc, IConfiguration? configuration = null)
     {
         _db       = db;
         _queueSvc = queueSvc;
+        _frequencyCapDays = configuration?.GetValue("Outreach:FrequencyCapDays", 7) ?? 7;
     }
 
     /// <summary>
@@ -27,6 +30,7 @@ public class EmailSendController : ControllerBase
     [HttpPost("api/emails/{id:guid}/send")]
     public async Task<IActionResult> QueueEmail(Guid id, [FromBody] QueueEmailRequestDto? dto, CancellationToken ct)
     {
+        if (_db.CurrentOrganizationId == null) return Forbid();
         var email = await _db.Set<GeneratedEmail>()
             .Include(e => e.Lead)
             .FirstOrDefaultAsync(e => e.Id == id, ct);
@@ -40,6 +44,12 @@ public class EmailSendController : ControllerBase
             return BadRequest("The lead has no email address.");
 
         var scheduledAt = dto?.ScheduledAt;
+        var blocked = await OreoLeads.Infrastructure.Brevo.OutreachGuard.BlockReasonAsync(_db, new EmailSendJob
+        {
+            GeneratedEmailId = email.Id, LeadId = email.LeadId, OrganizationId = email.OrganizationId,
+            ToEmail = email.Lead.Email, Subject = email.Subject, HtmlBody = email.Body
+        }, ct, _frequencyCapDays);
+        if (blocked != null) return BadRequest(new { error = blocked });
         var job = await _queueSvc.QueueAsync(
             generatedEmailId: email.Id,
             leadId:           email.LeadId,
@@ -48,7 +58,7 @@ public class EmailSendController : ControllerBase
             subject:          email.Subject,
             htmlBody:         email.Body,
             scheduledAt:      scheduledAt,
-            organizationId:   null,
+            organizationId:   email.OrganizationId,
             ct:               ct);
 
         return Accepted(ToDto(job));
@@ -58,18 +68,18 @@ public class EmailSendController : ControllerBase
     [HttpGet("api/emails/{id:guid}/send-status")]
     public async Task<IActionResult> GetSendStatus(Guid id, CancellationToken ct)
     {
-        var jobs = await _queueSvc.GetByLeadAsync(id, ct);
-        // Filter by GeneratedEmailId
-        var filtered = jobs.Where(j => j.GeneratedEmailId == id).ToList();
-        return Ok(filtered.Select(ToDto));
+        if (_db.CurrentOrganizationId is not { } org) return Forbid();
+        var jobs = await _db.EmailSendJobs.Where(j => j.GeneratedEmailId == id && j.OrganizationId == org).ToListAsync(ct);
+        return Ok(jobs.Select(ToDto));
     }
 
     /// <summary>Cancels a pending send job.</summary>
     [HttpDelete("api/email-jobs/{jobId:guid}")]
     public async Task<IActionResult> CancelJob(Guid jobId, CancellationToken ct)
     {
+        if (_db.CurrentOrganizationId is not { } org) return Forbid();
         var job = await _queueSvc.GetByIdAsync(jobId, ct);
-        if (job is null) return NotFound();
+        if (job is null || job.OrganizationId != org) return NotFound();
 
         if (job.Status != EmailSendStatus.Pending)
             return BadRequest($"Only pending jobs can be cancelled. Current status: {job.Status}.");

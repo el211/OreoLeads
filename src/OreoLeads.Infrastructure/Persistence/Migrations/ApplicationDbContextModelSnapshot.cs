@@ -1611,11 +1611,157 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.ToTable("brevo_configurations", (string)null);
                 });
 
+            modelBuilder.Entity("OreoLeads.Domain.Entities.CampaignExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Discovered")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Duplicates")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Page")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId", "CreatedAt");
+
+                    b.ToTable("CampaignExecutions");
+                });
+
+            modelBuilder.Entity("OreoLeads.Domain.Entities.CampaignProspect", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AiAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AiError")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("AiLeaseToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AiLeaseUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("LeadId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("NextAiAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("QualifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RecommendationJson")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeadId");
+
+                    b.HasIndex("CampaignId", "LeadId")
+                        .IsUnique();
+
+                    b.ToTable("CampaignProspects");
+                });
+
+            modelBuilder.Entity("OreoLeads.Domain.Entities.ChatMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("author_name");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("chat_messages", (string)null);
+                });
+
             modelBuilder.Entity("OreoLeads.Domain.Entities.CompanyContact", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("double precision");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1640,6 +1786,9 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("LeadId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ObservedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -1648,8 +1797,18 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("ProfileUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceUrl")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VerificationStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -1915,80 +2074,6 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.ToTable("follow_ups", (string)null);
                 });
 
-            modelBuilder.Entity("OreoLeads.Domain.Entities.ChatMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AuthorName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id")
-                        .HasName("pk_chat_messages");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("ix_chat_messages_created_at");
-
-                    b.ToTable("chat_messages", (string)null);
-                });
-
-            modelBuilder.Entity("OreoLeads.Domain.Entities.InviteCode", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsUsed")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UsedByEmail")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id")
-                        .HasName("pk_invite_codes");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_invite_codes_code");
-
-                    b.ToTable("invite_codes", (string)null);
-                });
-
             modelBuilder.Entity("OreoLeads.Domain.Entities.GeneratedEmail", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2012,8 +2097,18 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.Property<int>("CurrentVersion")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("EvidenceOnly")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("GenerationInstructions")
+                        .HasColumnType("text");
+
                     b.Property<int>("GenerationMs")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<Guid>("LeadId")
                         .HasColumnType("uuid");
@@ -2038,6 +2133,9 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("RequiresOutreachReview")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2080,6 +2178,56 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("generated_emails", (string)null);
+                });
+
+            modelBuilder.Entity("OreoLeads.Domain.Entities.InviteCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<bool>("IsUsed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_used");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at");
+
+                    b.Property<string>("UsedByEmail")
+                        .HasColumnType("text")
+                        .HasColumnName("used_by_email");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("invite_codes", (string)null);
                 });
 
             modelBuilder.Entity("OreoLeads.Domain.Entities.Lead", b =>
@@ -2208,6 +2356,9 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("WebsiteDomain")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("WebsiteValidatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -2218,6 +2369,8 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.HasIndex("CompanyName");
 
                     b.HasIndex("Email");
+
+                    b.HasIndex("OrganizationId", "WebsiteDomain");
 
                     b.HasIndex("Status", "Priority");
 
@@ -2305,6 +2458,9 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("GuessedEmail")
+                        .HasColumnType("text");
+
+                    b.Property<string>("InspectionJson")
                         .HasColumnType("text");
 
                     b.Property<Guid>("LeadId")
@@ -2452,6 +2608,82 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.ToTable("Organizations");
                 });
 
+            modelBuilder.Entity("OreoLeads.Domain.Entities.OutreachReview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ApprovedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Basis")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("BasisEvidence")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("EmailDraftId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OptOutUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PrivacyNoticeUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SenderIdentification")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ValidUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailDraftId")
+                        .IsUnique();
+
+                    b.ToTable("OutreachReviews");
+                });
+
             modelBuilder.Entity("OreoLeads.Domain.Entities.PromptTemplate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2498,6 +2730,89 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("prompt_templates", (string)null);
+                });
+
+            modelBuilder.Entity("OreoLeads.Domain.Entities.ProspectingCampaign", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AutomaticAiRecommendation")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CriteriaJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("DailyLimit")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DailyPageLimit")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DiscoveredToday")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DiscoveryIntervalMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Failures")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<int>("MaxPendingEnrichments")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinimumScore")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("NextDiscoveryAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("NextPage")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("NextRunAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PageOffset")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PagesToday")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("QuotaDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RetentionDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "NextRunAt");
+
+                    b.ToTable("ProspectingCampaigns");
                 });
 
             modelBuilder.Entity("OreoLeads.Domain.Entities.RefreshToken", b =>
@@ -3196,6 +3511,30 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.Navigation("Folder");
                 });
 
+            modelBuilder.Entity("OreoLeads.Domain.Entities.CampaignExecution", b =>
+                {
+                    b.HasOne("OreoLeads.Domain.Entities.ProspectingCampaign", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OreoLeads.Domain.Entities.CampaignProspect", b =>
+                {
+                    b.HasOne("OreoLeads.Domain.Entities.ProspectingCampaign", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OreoLeads.Domain.Entities.Lead", null)
+                        .WithMany()
+                        .HasForeignKey("LeadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OreoLeads.Domain.Entities.CompanyContact", b =>
                 {
                     b.HasOne("OreoLeads.Domain.Entities.Lead", "Lead")
@@ -3290,6 +3629,15 @@ namespace OreoLeads.Infrastructure.Persistence.Migrations
                     b.Navigation("Lead");
 
                     b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("OreoLeads.Domain.Entities.OutreachReview", b =>
+                {
+                    b.HasOne("OreoLeads.Domain.Entities.GeneratedEmail", null)
+                        .WithMany()
+                        .HasForeignKey("EmailDraftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("OreoLeads.Domain.Entities.RefreshToken", b =>

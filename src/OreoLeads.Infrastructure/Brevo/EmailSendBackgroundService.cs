@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Domain.Enums;
@@ -17,13 +19,16 @@ internal sealed class EmailSendBackgroundService : BackgroundService
 
     private readonly IServiceScopeFactory          _scopeFactory;
     private readonly ILogger<EmailSendBackgroundService> _logger;
+    private readonly int _frequencyCapDays;
 
     public EmailSendBackgroundService(
         IServiceScopeFactory                 scopeFactory,
-        ILogger<EmailSendBackgroundService>  logger)
+        ILogger<EmailSendBackgroundService>  logger,
+        IConfiguration? configuration = null)
     {
         _scopeFactory = scopeFactory;
         _logger       = logger;
+        _frequencyCapDays = configuration?.GetValue("Outreach:FrequencyCapDays", 7) ?? 7;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -105,6 +110,12 @@ internal sealed class EmailSendBackgroundService : BackgroundService
         CancellationToken     ct)
     {
         using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = job.Id });
+        var blocked = await OutreachGuard.BlockReasonAsync(db, job, ct, _frequencyCapDays);
+        if (blocked != null)
+        {
+            await queueSvc.MarkFailedAsync(job.Id, blocked, canRetry: false, ct);
+            return;
+        }
 
         // TestMode (Brevo only): redirect to test address
         var toEmail = job.ToEmail;
@@ -118,7 +129,14 @@ internal sealed class EmailSendBackgroundService : BackgroundService
             toEmail = brevoConfig.TestModeEmail;
         }
 
-        await queueSvc.MarkSendingAsync(job.Id, ct);
+        if (db.Database.IsRelational())
+        {
+            var claimed = await db.EmailSendJobs.Where(j => j.Id == job.Id && j.Status == EmailSendStatus.Pending)
+                .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, EmailSendStatus.Sending)
+                    .SetProperty(j => j.LastAttemptAt, DateTime.UtcNow), ct);
+            if (claimed == 0) return;
+        }
+        else await queueSvc.MarkSendingAsync(job.Id, ct);
 
         try
         {

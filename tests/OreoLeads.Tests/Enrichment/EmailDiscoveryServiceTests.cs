@@ -8,7 +8,7 @@ namespace OreoLeads.Tests.Enrichment;
 public class EmailDiscoveryServiceTests
 {
     // IP publique littérale → passe le garde SSRF sans DNS.
-    private const string Site = "http://203.0.113.10/";
+    private const string Site = "http://8.8.8.10/";
 
     private static EmailDiscoveryService Build(FakePageFetcher fetcher)
         => new(fetcher, NullLogger<EmailDiscoveryService>.Instance);
@@ -50,7 +50,7 @@ public class EmailDiscoveryServiceTests
     [Fact]
     public async Task ExternalProfiles_Fallback_TagsSource()
     {
-        var profileUrl = "http://203.0.113.55/";
+        var profileUrl = "http://8.8.8.55/";
         var fetcher = new FakePageFetcher().Add(profileUrl,
             "<p>Contactez-nous : institutpoudre@gmail.com</p>");
 
@@ -65,7 +65,7 @@ public class EmailDiscoveryServiceTests
     public async Task ExternalProfiles_NoEmail_ReturnsNull()
     {
         var result = await Build(new FakePageFetcher())
-            .DiscoverFromExternalProfilesAsync(new List<ExternalProfile> { new("http://203.0.113.55/", "Social") });
+            .DiscoverFromExternalProfilesAsync(new List<ExternalProfile> { new("http://8.8.8.55/", "Social") });
 
         result.Email.Should().BeNull();
     }

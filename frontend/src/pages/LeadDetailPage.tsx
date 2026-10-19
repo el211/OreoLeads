@@ -1,3 +1,4 @@
+import { ResearchPanel } from '@/components/enrichment/ResearchPanel'
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
@@ -248,7 +249,7 @@ export function LeadDetailPage() {
             </Card>
           </div>
 
-          <EnrichmentPanel leadId={id!} />
+          <EnrichmentPanel leadId={id!} /><ResearchPanel leadId={id!} />
 
           <div className="text-xs text-muted-foreground">
             Créé le {format(new Date(lead.createdAt), 'dd MMMM yyyy à HH:mm', { locale: fr })}

@@ -122,19 +122,24 @@ public static class ServiceCollectionExtensions
         // Fetchers : Playwright + HTTP en singletons, exposés via CompositePageFetcher
         services.AddSingleton<HttpPageFetcher>();
         services.AddSingleton<PlaywrightPageFetcher>();
-        services.AddSingleton<IPageFetcher, CompositePageFetcher>();
+        services.AddSingleton<IPageFetcher>(sp => sp.GetRequiredService<HttpPageFetcher>());
 
         services.AddScoped<IWebsiteDiscoveryService, WebsiteDiscoveryService>();
         services.AddScoped<IEmailDiscoveryService, EmailDiscoveryService>();
+        services.AddScoped<IContactDiscoveryService, ContactDiscoveryService>();
         services.AddScoped<ICompanyEnrichmentService, CompanyEnrichmentService>();
         services.AddScoped<IEnrichmentQueueService, EnrichmentQueueService>();
         services.AddScoped<IEnrichmentService, EnrichmentService>();
         services.AddHostedService<EnrichmentBackgroundService>();
+        services.AddHostedService<OreoLeads.Infrastructure.Prospecting.CampaignWorker>();
+        services.AddScoped<OreoLeads.Infrastructure.Prospecting.CampaignRecommendationService>();
+        services.AddHostedService<OreoLeads.Infrastructure.Prospecting.CampaignRecommendationWorker>();
 
         // ── AI ────────────────────────────────────────────────────────────────
         services.AddScoped<IAiConfigurationService, AiConfigurationService>();
         services.AddScoped<IPromptBuilder, PromptBuilder>();
         services.AddScoped<IEmailGeneratorService, EmailGeneratorService>();
+        services.AddScoped<ILeadQualificationService, LeadQualificationService>();
         services.AddScoped<ISmsGeneratorService, SmsGeneratorService>();
         services.AddScoped<ISearchQueryParser, AiSearchQueryParser>();
         services.AddScoped<IIndustryClassifier, AiIndustryClassifier>();
@@ -173,6 +178,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBrevoService, BrevoService>();
         services.AddScoped<IBrevoConfigurationService, BrevoConfigurationService>();
         services.AddScoped<IEmailQueueService, EmailQueueService>();
+        services.AddScoped<OutreachReviewService>();
         services.AddScoped<IEmailStatsService, EmailStatsService>();
         services.AddHostedService<EmailSendBackgroundService>();
         services.AddScoped<ISmsQueueService, SmsQueueService>();

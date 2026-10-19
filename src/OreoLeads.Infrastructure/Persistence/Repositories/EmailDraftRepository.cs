@@ -48,6 +48,7 @@ internal sealed class EmailDraftRepository : IEmailDraftRepository
 
     public async Task<GeneratedEmail> CreateAsync(GeneratedEmail draft)
     {
+        draft.OrganizationId ??= _db.CurrentOrganizationId;
         _db.GeneratedEmails.Add(draft);
         await _db.SaveChangesAsync();
         return draft;

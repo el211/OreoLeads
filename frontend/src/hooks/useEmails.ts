@@ -99,6 +99,7 @@ export function useApproveEmail(id: string) {
   return useMutation({
     mutationFn: async () => (await api.post<EmailDraft>(`/emails/${id}/approve`)).data,
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['outreach-review', id] })
       qc.invalidateQueries({ queryKey: ['email-draft', id] })
       qc.invalidateQueries({ queryKey: ['email-drafts'] })
     },

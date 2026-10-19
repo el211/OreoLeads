@@ -2,6 +2,8 @@ namespace OreoLeads.Application.Features.Search.DTOs;
 
 public class CompanySearchRequestDto
 {
+    public int? MinimumEmployees { get; set; }
+    public int? MaximumEmployees { get; set; }
     public string? Keywords { get; set; }
     public string? Region { get; set; }
     public string? Department { get; set; }

@@ -32,6 +32,7 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
     private readonly IWebsiteAnalyzerService _analyzer;
     private readonly EnrichmentSettings _settings;
     private readonly ILogger<CompanyEnrichmentService> _logger;
+    private readonly IContactDiscoveryService? _contacts;
 
     public CompanyEnrichmentService(
         ApplicationDbContext db,
@@ -39,7 +40,8 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
         IEmailDiscoveryService emailDiscovery,
         IWebsiteAnalyzerService analyzer,
         IOptions<EnrichmentSettings> settings,
-        ILogger<CompanyEnrichmentService> logger)
+        ILogger<CompanyEnrichmentService> logger,
+        IContactDiscoveryService? contacts = null)
     {
         _db               = db;
         _websiteDiscovery = websiteDiscovery;
@@ -47,6 +49,7 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
         _analyzer         = analyzer;
         _settings         = settings.Value;
         _logger           = logger;
+        _contacts = contacts;
     }
 
     public async Task<EnrichmentStatus> RunAsync(Guid enrichmentId, CancellationToken ct = default)
@@ -149,6 +152,8 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
         });
 
         job.SetUpdatedAt();
+        if (_contacts != null && !string.IsNullOrWhiteSpace(lead.Website))
+            job.InspectionJson = await _contacts.InspectAsync(lead, ct);
         await _db.SaveChangesAsync(ct);
 
         return needsReview ? EnrichmentStatus.NeedsReview : EnrichmentStatus.Completed;

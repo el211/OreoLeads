@@ -48,6 +48,10 @@ internal sealed class EmailGeneratorService : IEmailGeneratorService
         var draft = new GeneratedEmail
         {
             LeadId           = leadId,
+            RequiresOutreachReview = request.Type is EmailType.FirstContact or EmailType.FollowUp or EmailType.LastFollowUp,
+            Language = request.Language,
+            EvidenceOnly = request.EvidenceOnly,
+            GenerationInstructions = request.CustomInstructions,
             Subject          = parsed.Subject,
             Body             = parsed.Body,
             Summary          = parsed.Summary,
@@ -98,6 +102,9 @@ internal sealed class EmailGeneratorService : IEmailGeneratorService
 
         var request = new GenerateEmailRequestDto
         {
+            Language = draft.Language,
+            EvidenceOnly = draft.EvidenceOnly,
+            CustomInstructions = draft.GenerationInstructions,
             Style  = draft.Style,
             Length = draft.Length,
             Type   = draft.Type

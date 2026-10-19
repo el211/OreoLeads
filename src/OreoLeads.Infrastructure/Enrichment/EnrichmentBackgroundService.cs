@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
+using OreoLeads.Infrastructure.Persistence;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Domain.Enums;
 
@@ -96,8 +98,16 @@ internal sealed class EnrichmentBackgroundService : BackgroundService
 
         try
         {
-            await queue.MarkRunningAsync(jobId, ct);
-            var status = await orchestrator.RunAsync(jobId, ct);
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var claimed = await db.LeadEnrichments.Where(e => e.Id == jobId && e.Status == EnrichmentStatus.Pending)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.Status, EnrichmentStatus.Running)
+                    .SetProperty(e => e.StartedAt, DateTime.UtcNow), ct);
+            if (claimed == 0) return;
+            var job = await db.LeadEnrichments.SingleAsync(e => e.Id == jobId, ct);
+            if (job.OrganizationId is { } org) scope.ServiceProvider.GetRequiredService<TenantContext>().SetOrganization(org);
+            using var jobTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            jobTimeout.CancelAfter(TimeSpan.FromMinutes(10));
+            var status = await orchestrator.RunAsync(jobId, jobTimeout.Token);
 
             if (status == EnrichmentStatus.NeedsReview)
                 await queue.MarkNeedsReviewAsync(jobId, ct);

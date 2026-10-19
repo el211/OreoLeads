@@ -14,6 +14,20 @@ public static class SsrfGuard
     // RFC 1918 private ranges + loopback + link-local + cloud metadata
     private static readonly (IPAddress Network, int PrefixLength)[] BlockedRanges =
     [
+        (IPAddress.Parse("0.0.0.0"), 8),
+        (IPAddress.Parse("192.0.0.0"), 24),
+        (IPAddress.Parse("192.0.2.0"), 24),
+        (IPAddress.Parse("198.18.0.0"), 15),
+        (IPAddress.Parse("198.51.100.0"), 24),
+        (IPAddress.Parse("203.0.113.0"), 24),
+        (IPAddress.Parse("224.0.0.0"), 3),
+        (IPAddress.Parse("::"), 128),
+        (IPAddress.Parse("ff00::"), 8),
+        (IPAddress.Parse("2001:db8::"), 32),
+        (IPAddress.Parse("64:ff9b::"), 96),
+        (IPAddress.Parse("::"), 96),
+        (IPAddress.Parse("2002::"), 16),
+        (IPAddress.Parse("2001::"), 32),
         (IPAddress.Parse("127.0.0.0"),   8),   // Loopback
         (IPAddress.Parse("10.0.0.0"),    8),   // RFC 1918
         (IPAddress.Parse("172.16.0.0"),  12),  // RFC 1918
@@ -38,6 +52,7 @@ public static class SsrfGuard
 
         if (!AllowedSchemes.Contains(uri.Scheme, StringComparer.OrdinalIgnoreCase))
             throw new InvalidOperationException($"URL scheme '{uri.Scheme}' is not allowed. Only HTTP/HTTPS permitted.");
+        if (uri.UserInfo.Length > 0) throw new InvalidOperationException("URL credentials are not permitted.");
 
         // Block numeric IP literals before DNS resolution
         if (IPAddress.TryParse(uri.Host, out var literalIp))
