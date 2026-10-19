@@ -42,7 +42,7 @@ internal class OpenAiProvider : IAiProvider
 
         var model = cfg.Model ?? "gpt-4o-mini";
 
-        // GPT-5.x uses the Responses API (/v1/responses) instead of Chat Completions.
+        // Use Responses for reasoning models to avoid legacy sampling parameters.
         return IsResponsesApiModel(model)
             ? await CompleteViaResponsesApiAsync(request, apiKey, model, cfg.BaseUrl, ct)
             : await CompleteViaChatCompletionsAsync(request, apiKey, model, cfg.BaseUrl, ct);
@@ -50,6 +50,7 @@ internal class OpenAiProvider : IAiProvider
 
     private static bool IsResponsesApiModel(string model)
         => model.StartsWith("gpt-5", StringComparison.OrdinalIgnoreCase)
+        || model.StartsWith("gpt-6", StringComparison.OrdinalIgnoreCase)
         || model.StartsWith("o3",    StringComparison.OrdinalIgnoreCase)
         || model.StartsWith("o4",    StringComparison.OrdinalIgnoreCase);
 
@@ -111,6 +112,9 @@ internal class OpenAiProvider : IAiProvider
         {
             model,
             max_output_tokens = request.MaxTokens,
+            reasoning = model.StartsWith("gpt-6", StringComparison.OrdinalIgnoreCase)
+                ? new { effort = "low" }
+                : null,
             input = new object[]
             {
                 new { role = "developer", content = request.SystemPrompt },
@@ -120,7 +124,10 @@ internal class OpenAiProvider : IAiProvider
 
         using var req = new HttpRequestMessage(HttpMethod.Post, endpoint);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        req.Content = JsonContent.Create(body);
+        req.Content = JsonContent.Create(body, options: new System.Text.Json.JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        });
 
         var sw = Stopwatch.StartNew();
         using var resp = await _http.SendAsync(req, ct);
@@ -152,8 +159,10 @@ internal class OpenAiProvider : IAiProvider
     {
         try
         {
+            var cfg = await _configService.GetCurrentAsync();
+            var maxTokens = IsResponsesApiModel(cfg?.Model ?? "") ? 1024 : 5;
             var result = await CompleteAsync(
-                new AiCompletionRequest("You are a helpful assistant.", "Reply with: OK", 5, 0.1f), ct);
+                new AiCompletionRequest("You are a helpful assistant.", "Reply with: OK", maxTokens, 0.1f), ct);
             return !string.IsNullOrWhiteSpace(result.Content);
         }
         catch

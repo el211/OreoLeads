@@ -47,6 +47,8 @@ export function AiSettingsPage() {
   }, [config])
 
   const selectedProvider = providers.find(p => p.type === form.providerType)
+  const usesReasoning = (form.providerType === 'OpenAI' || form.providerType === 'GenericOpenAI')
+    && /^(gpt-[56]|o3|o4)/i.test(form.model ?? '')
 
   const handleSave = async () => {
     await updateConfig.mutateAsync(form)
@@ -176,6 +178,7 @@ export function AiSettingsPage() {
               <Label>Température <span className="text-muted-foreground">({form.temperature})</span></Label>
               <input
                 type="range"
+                disabled={usesReasoning}
                 min="0" max="1" step="0.1"
                 value={form.temperature}
                 onChange={e => setForm(f => ({ ...f, temperature: parseFloat(e.target.value) }))}
@@ -184,6 +187,7 @@ export function AiSettingsPage() {
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>Précis</span><span>Créatif</span>
               </div>
+              {usesReasoning && <p className="text-xs text-muted-foreground mt-1">Température non utilisée pour ce modèle.</p>}
             </div>
             <div>
               <Label htmlFor="max-tokens">Max tokens</Label>

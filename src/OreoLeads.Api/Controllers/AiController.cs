@@ -35,8 +35,8 @@ public class AiController : ControllerBase
             new AiProviderInfoDto(
                 "OpenAI", AiProviderType.OpenAI,
                 RequiresApiKey: true, RequiresBaseUrl: false,
-                DefaultModels: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
-                "API OpenAI — GPT-4 et modèles ChatGPT."),
+                DefaultModels: ["gpt-6-luna", "gpt-6-sol", "gpt-6-astra", "gpt-6.1-sol", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+                "API OpenAI — GPT-6 Luna, Sol, Astra et modèles GPT-4."),
 
             new AiProviderInfoDto(
                 "Ollama (local)", AiProviderType.Ollama,
