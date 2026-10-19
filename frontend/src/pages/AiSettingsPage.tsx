@@ -56,7 +56,12 @@ export function AiSettingsPage() {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  const handleTest = () => testConnection.mutate()
+  const handleTest = () => {
+    testConnection.reset()
+    updateConfig.mutate(form, {
+      onSuccess: () => testConnection.mutate(),
+    })
+  }
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -233,12 +238,12 @@ export function AiSettingsPage() {
 
       {/* Actions */}
       <div className="flex items-center gap-3">
-        <Button onClick={handleSave} disabled={updateConfig.isPending}>
+        <Button onClick={handleSave} disabled={updateConfig.isPending || testConnection.isPending}>
           {updateConfig.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
           Enregistrer
         </Button>
 
-        <Button variant="outline" onClick={handleTest} disabled={testConnection.isPending || !form.isEnabled}>
+        <Button variant="outline" onClick={handleTest} disabled={updateConfig.isPending || testConnection.isPending || !form.isEnabled}>
           {testConnection.isPending
             ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             : <Zap className="h-4 w-4 mr-2" />
@@ -254,6 +259,11 @@ export function AiSettingsPage() {
       </div>
 
       {/* Test result */}
+      {updateConfig.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          Impossible d'enregistrer les paramètres IA. Réessayez avant de tester la connexion.
+        </p>
+      )}
       {testConnection.data && (
         <Card className={testConnection.data.success ? 'border-green-300 bg-green-50 dark:bg-green-950/20' : 'border-destructive bg-destructive/5'}>
           <CardContent className="pt-4 flex items-center gap-3">
