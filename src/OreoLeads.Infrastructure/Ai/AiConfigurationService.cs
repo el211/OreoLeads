@@ -45,7 +45,7 @@ internal sealed class AiConfigurationService : IAiConfigurationService
 
         if (existing is null)
         {
-            existing = new AiConfiguration();
+            existing = new AiConfiguration { OrganizationId = _db.CurrentOrganizationId };
             _db.Set<AiConfiguration>().Add(existing);
         }
 
