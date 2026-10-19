@@ -9,6 +9,28 @@ namespace OreoLeads.Tests.Enrichment;
 
 public class WebsiteDiscoveryServiceTests
 {
+    [Fact]
+    public async Task GovernmentDirectoryWithExactSiren_IsNeverAnOfficialWebsite()
+    {
+        const string url = "https://annuaire-entreprises.data.gouv.fr/entreprise/111222333";
+        var brave = new FakeBraveClient(new WebSearchResult(url, "Registry", ""));
+        var fetcher = new FakePageFetcher().Add(url, "Boulangerie du Coin Lyon 111222333");
+        var result = await Build(brave, fetcher).DiscoverAsync(SampleLead());
+        Assert.Null(result.ChosenUrl);
+        Assert.Empty(result.Candidates);
+        Assert.Contains(result.ExternalProfiles, p => p.Url == url && p.Category == "RegistreLegal");
+    }
+
+    [Fact]
+    public async Task LegalPageCanConfirmTheCompanyIdentifier()
+    {
+        var brave = new FakeBraveClient(new WebSearchResult(Candidate1, "Site", ""));
+        var fetcher = new FakePageFetcher()
+            .Add(Candidate1, "<h1>Boulangerie du Coin Lyon</h1><a href='/mentions-legales'>Mentions légales</a>")
+            .Add(Candidate1 + "mentions-legales", "SIREN 111222333");
+        var result = await Build(brave, fetcher).DiscoverAsync(SampleLead());
+        Assert.True(result.Confidence >= .95);
+    }
     // URLs à IP publique littérale : passent le garde SSRF sans résolution DNS.
     private const string Candidate1 = "http://8.8.8.10/";
     private const string Candidate2 = "http://8.8.8.20/";

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using OreoLeads.Application.Common.Interfaces;
 using OreoLeads.Domain.Entities;
 using OreoLeads.Infrastructure.Security;
+using OreoLeads.Infrastructure.Analysis;
 
 namespace OreoLeads.Infrastructure.Enrichment;
 
@@ -133,9 +134,27 @@ public sealed class WebsiteDiscoveryService : IWebsiteDiscoveryService
         {
             await SsrfGuard.ValidateAsync(url, ct);
             var page = await _fetcher.FetchAsync(url, ct);
-            if (string.IsNullOrEmpty(page.Html)) return null;
+            if (page.Error != null || page.StatusCode >= 400 || string.IsNullOrEmpty(page.Html)) return null;
+            if (EnrichmentScoring.IsBlacklisted(page.FinalUrl, _settings.DirectoryBlacklist)) return null;
+            url = page.FinalUrl;
 
             var result = EnrichmentScoring.ScoreCandidate(identity, url, page.Html);
+            // Legal/contact pages often contain the company identifier missing from the homepage.
+            if (result.Score >= _settings.ReviewThreshold && result.Score < _settings.AutoApplyThreshold &&
+                Uri.TryCreate(url, UriKind.Absolute, out var root))
+            {
+                var evidence = page.Html;
+                foreach (var link in HtmlAnalyzer.FindLegalPageUrls(page.Html, root)
+                    .Concat(HtmlAnalyzer.FindContactPageUrls(page.Html, root)).Distinct().Take(2))
+                {
+                    if (!Uri.TryCreate(link, UriKind.Absolute, out var target) || target.Authority != root.Authority) continue;
+                    var extra = await _fetcher.FetchAsync(link, ct);
+                    if (extra.Error != null || extra.StatusCode >= 400 ||
+                        !Uri.TryCreate(extra.FinalUrl, UriKind.Absolute, out var final) || final.Authority != root.Authority) continue;
+                    evidence += " " + extra.Html;
+                }
+                result = EnrichmentScoring.ScoreCandidate(identity, url, evidence);
+            }
             return new WebsiteCandidate(url, result.Score, "OfficialCandidate", result.Signals);
         }
         catch (Exception ex)
@@ -147,14 +166,13 @@ public sealed class WebsiteDiscoveryService : IWebsiteDiscoveryService
 
     private static string? CategorizeExternal(string url)
     {
-        var domain = EnrichmentScoring.GetRegistrableDomain(url);
-        if (domain is null) return null;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return null;
 
-        if (EnrichmentSettings.SocialDomains.Any(d => domain.EndsWith(d, StringComparison.OrdinalIgnoreCase)))
+        if (EnrichmentScoring.IsBlacklisted(url, EnrichmentSettings.SocialDomains))
             return "Social";
-        if (EnrichmentSettings.BookingDomains.Any(d => domain.EndsWith(d, StringComparison.OrdinalIgnoreCase)))
+        if (EnrichmentScoring.IsBlacklisted(url, EnrichmentSettings.BookingDomains))
             return "Booking";
-        if (EnrichmentSettings.LegalRegistryDomains.Any(d => domain.EndsWith(d, StringComparison.OrdinalIgnoreCase)))
+        if (EnrichmentScoring.IsBlacklisted(url, EnrichmentSettings.LegalRegistryDomains))
             return "RegistreLegal";
         return "Annuaire";
     }

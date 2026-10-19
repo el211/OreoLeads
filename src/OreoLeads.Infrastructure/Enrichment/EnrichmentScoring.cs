@@ -112,8 +112,8 @@ public static class EnrichmentScoring
 
     public static bool IsBlacklisted(string url, IEnumerable<string> blacklist)
     {
-        var domain = GetRegistrableDomain(url);
-        if (domain is null) return true;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return true;
+        var domain = uri.Host.TrimEnd('.');
         return blacklist.Any(b =>
             domain.Equals(b, StringComparison.OrdinalIgnoreCase) ||
             domain.EndsWith("." + b, StringComparison.OrdinalIgnoreCase) ||

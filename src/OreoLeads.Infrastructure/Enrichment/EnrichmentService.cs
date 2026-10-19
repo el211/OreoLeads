@@ -85,6 +85,8 @@ public sealed class EnrichmentService : IEnrichmentService
         lead.SetUpdatedAt();
 
         await _db.SaveChangesAsync(ct);
+        if (request.AcceptWebsite && !string.IsNullOrWhiteSpace(lead.Website))
+            await _queue.QueueAsync(lead.Id, lead.OrganizationId, false, ct);
         return ToDto(job);
     }
 

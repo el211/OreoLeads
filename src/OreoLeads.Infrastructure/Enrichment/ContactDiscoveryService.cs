@@ -14,11 +14,15 @@ public sealed class ContactDiscoveryService(IPageFetcher fetcher, ApplicationDbC
     private static readonly Regex Links = new("href\\s*=\\s*[\"'](?<url>[^\"']+)[\"']", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(200));
     private static readonly Regex JsonLd = new("<script[^>]*type\\s*=\\s*[\"']application/ld\\+json[\"'][^>]*>(?<json>.*?)</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline, TimeSpan.FromMilliseconds(200));
 
-    public async Task<string> InspectAsync(Lead lead, CancellationToken ct = default)
+    public async Task<string> InspectAsync(Lead lead, CancellationToken ct = default, string? candidateWebsite = null)
     {
-        if (!Uri.TryCreate(lead.Website, UriKind.Absolute, out var root)) return "[]";
+        if (!Uri.TryCreate(candidateWebsite ?? lead.Website, UriKind.Absolute, out var root)) return "[]";
+        var candidateOnly = candidateWebsite != null;
+        var discoveredPhones = new List<string>();
         var pending = new Queue<Uri>();
         pending.Enqueue(root);
+        foreach (var path in new[] { "/contact", "/contactez-nous", "/mentions-legales" })
+            pending.Enqueue(new Uri(root, path));
         var seen = new HashSet<string>();
         var reports = new List<object>();
         var contacts = await db.CompanyContacts.Where(c => c.LeadId == lead.Id).ToListAsync(ct);
@@ -28,14 +32,16 @@ public sealed class ContactDiscoveryService(IPageFetcher fetcher, ApplicationDbC
             if (!seen.Add(url.AbsoluteUri)) continue;
             var page = await fetcher.FetchAsync(url.AbsoluteUri, ct);
             var observedAt = DateTime.UtcNow;
-            if (page.Error != null || page.Html == null)
+            if (page.Error != null || page.StatusCode >= 400 || page.Html == null)
             {
-                reports.Add(new { sourceUrl = url.AbsoluteUri, observedAt, page.StatusCode, page.Error, confidence = 1.0 });
+                reports.Add(new { sourceUrl = url.AbsoluteUri, observedAt, page.StatusCode, error = page.Error ?? $"HTTP {page.StatusCode}", candidateOnly, confidence = 1.0 });
                 continue;
             }
             // Do not associate people after a cross-origin redirect.
             if (!Uri.TryCreate(page.FinalUrl, UriKind.Absolute, out var final) || final.Host != root.Host) continue;
             var html = page.Html;
+            var phones = PhoneExtractor.Extract(html);
+            discoveredPhones.AddRange(phones);
             var links = Links.Matches(html).Select(m => System.Net.WebUtility.HtmlDecode(m.Groups["url"].Value))
                 .Select(h => Uri.TryCreate(final, h, out var u) ? u : null).Where(u => u != null).Cast<Uri>().ToList();
             var social = links.Where(u => u.Scheme == "https" && new[] { "linkedin.com", "facebook.com", "instagram.com", "x.com" }.Any(d => u.Host == d || u.Host.EndsWith("." + d))).Select(u => u.AbsoluteUri).Distinct().Take(20).ToArray();
@@ -46,12 +52,13 @@ public sealed class ContactDiscoveryService(IPageFetcher fetcher, ApplicationDbC
                 imagesWithoutAlt = Regex.Matches(html, "<img\\b[^>]*>", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(200))
                     .Count(m => !Regex.IsMatch(m.Value, "\\balt\\s*=", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(50))),
                 emails = EmailExtractor.ExtractAll(html),
-                phones = links.Where(u => u.Scheme == "tel").Select(u => u.OriginalString).Distinct().Take(10).ToArray(),
+                phones, candidateOnly,
                 socialProfiles = social, confidence = 1.0,
                 interpretation = "Static HTML observations only; absence of a signature does not prove absence of a feature. Fetch time includes robots policy checks."
             });
             foreach (Match script in JsonLd.Matches(html))
             {
+                if (candidateOnly) break;
                 try
                 {
                     using var json = JsonDocument.Parse(script.Groups["json"].Value);
@@ -86,6 +93,11 @@ public sealed class ContactDiscoveryService(IPageFetcher fetcher, ApplicationDbC
                 var clean = new UriBuilder(link) { Fragment = "" }.Uri;
                 if (pending.Count < 24 && !seen.Contains(clean.AbsoluteUri)) pending.Enqueue(clean);
             }
+        }
+        if (!candidateOnly && string.IsNullOrWhiteSpace(lead.Phone))
+        {
+            lead.Phone = discoveredPhones.Distinct().OrderByDescending(PhoneExtractor.IsFrenchMobile).FirstOrDefault();
+            if (lead.Phone != null) lead.SetUpdatedAt();
         }
         return JsonSerializer.Serialize(reports, new JsonSerializerOptions(JsonSerializerDefaults.Web));
     }

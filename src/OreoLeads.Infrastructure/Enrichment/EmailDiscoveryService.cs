@@ -12,7 +12,7 @@ namespace OreoLeads.Infrastructure.Enrichment;
 /// </summary>
 public sealed class EmailDiscoveryService : IEmailDiscoveryService
 {
-    private const int MaxPagesToScan = 5;
+    private const int MaxPagesToScan = 8;
 
     private static readonly string[] FixedPaths =
         ["/contact", "/contactez-nous", "/mentions-legales", "/mentions", "/a-propos", "/about", "/equipe", "/reservation"];
@@ -43,9 +43,11 @@ public sealed class EmailDiscoveryService : IEmailDiscoveryService
             {
                 pagesToScan.AddRange(HtmlAnalyzer.FindContactPageUrls(homepage, baseUri));
                 pagesToScan.AddRange(HtmlAnalyzer.FindLegalPageUrls(homepage, baseUri));
-                pagesToScan.AddRange(FixedPaths.Select(p => new Uri(baseUri, p).ToString()));
             }
         }
+        // Try contact paths even when the homepage could not be fetched.
+        if (Uri.TryCreate(websiteUrl, UriKind.Absolute, out var siteUri))
+            pagesToScan.AddRange(FixedPaths.Select(p => new Uri(siteUri, p).ToString()));
 
         foreach (var url in pagesToScan.Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -130,7 +132,7 @@ public sealed class EmailDiscoveryService : IEmailDiscoveryService
         {
             await SsrfGuard.ValidateAsync(url, ct);
             var page = await _fetcher.FetchAsync(url, ct);
-            return string.IsNullOrEmpty(page.Html) ? null : page.Html;
+            return page.Error != null || page.StatusCode >= 400 || string.IsNullOrEmpty(page.Html) ? null : page.Html;
         }
         catch (Exception ex)
         {

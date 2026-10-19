@@ -63,7 +63,15 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
         var externalProfiles = new List<ExternalProfile>();
 
         // ── 1. Découverte du site web ─────────────────────────────────────────
+        if (lead.WebsiteValidatedAt is null && !string.IsNullOrWhiteSpace(lead.Website) &&
+            EnrichmentScoring.IsBlacklisted(lead.Website, _settings.DirectoryBlacklist))
+        {
+            lead.Website = null;
+            lead.SetUpdatedAt();
+        }
         var websiteToUse = lead.Website;
+        if (!string.IsNullOrWhiteSpace(websiteToUse))
+            job.ChosenWebsiteUrl = websiteToUse;
 
         if (string.IsNullOrWhiteSpace(lead.Website) && _websiteDiscovery.IsConfigured)
         {
@@ -92,6 +100,7 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
                 // Candidat plausible mais pas assez sûr : revue manuelle
                 job.ChosenWebsiteUrl = discovery.ChosenUrl;
                 needsReview = true;
+                websiteToUse = discovery.ChosenUrl;
             }
 
             _logger.LogInformation(
@@ -108,8 +117,14 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
             else
                 emailResult = await _emailDiscovery.DiscoverFromExternalProfilesAsync(externalProfiles, ct);
 
+            if (emailResult.Email is null && !string.IsNullOrWhiteSpace(websiteToUse) && externalProfiles.Count > 0)
+                emailResult = await _emailDiscovery.DiscoverFromExternalProfilesAsync(externalProfiles, ct);
+
             if (emailResult.Email is not null)
             {
+                // An email on a candidate site is only as certain as the company/site association.
+                if (string.IsNullOrWhiteSpace(lead.Website) && !string.IsNullOrWhiteSpace(websiteToUse))
+                    emailResult = emailResult with { Confidence = Math.Min(emailResult.Confidence, job.WebsiteConfidence ?? 0) };
                 job.DiscoveredEmail = emailResult.Email;
                 job.EmailSourceUrl  = emailResult.SourceUrl;
                 job.EmailSourceType = emailResult.SourceType;
@@ -152,8 +167,9 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
         });
 
         job.SetUpdatedAt();
-        if (_contacts != null && !string.IsNullOrWhiteSpace(lead.Website))
-            job.InspectionJson = await _contacts.InspectAsync(lead, ct);
+        if (_contacts != null && !string.IsNullOrWhiteSpace(websiteToUse))
+            job.InspectionJson = await _contacts.InspectAsync(lead, ct,
+                string.IsNullOrWhiteSpace(lead.Website) ? websiteToUse : null);
         await _db.SaveChangesAsync(ct);
 
         return needsReview ? EnrichmentStatus.NeedsReview : EnrichmentStatus.Completed;

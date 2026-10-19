@@ -7,10 +7,15 @@ import type {
 } from '@/types/enrichment'
 
 export function useLeadEnrichments(leadId: string) {
+  const queryClient = useQueryClient()
   return useQuery<LeadEnrichment[]>({
     queryKey: ['enrichments', leadId],
     queryFn: async () => {
       const { data } = await api.get<LeadEnrichment[]>(`/enrichment/leads/${leadId}`)
+      if (data[0] && data[0].status !== 'Pending' && data[0].status !== 'Running') {
+        void queryClient.invalidateQueries({ queryKey: ['lead', leadId] })
+        void queryClient.invalidateQueries({ queryKey: ['research', leadId] })
+      }
       return data
     },
     // Rafraîchit tant qu'un enrichissement est en attente / en cours

@@ -4,5 +4,5 @@ namespace OreoLeads.Application.Common.Interfaces;
 
 public interface IContactDiscoveryService
 {
-    Task<string> InspectAsync(Lead lead, CancellationToken ct = default);
+    Task<string> InspectAsync(Lead lead, CancellationToken ct = default, string? candidateWebsite = null);
 }
