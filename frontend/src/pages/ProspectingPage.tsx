@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { isAxiosError } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import api from '@/lib/api'
@@ -36,7 +37,7 @@ export function ProspectingPage() {
   return <div className="space-y-6 p-6">
     <div className="flex justify-between items-center"><div><h1 className="text-2xl font-bold">Prospection automatique</h1><p className="text-muted-foreground">Découverte → enrichissement → qualification → revue humaine</p></div><Link className="underline" to="/emails">Brouillons et approbation</Link></div>
     {status.data && <Card><CardContent className="pt-4 text-sm space-y-2"><p>Brave : {status.data.braveConfigured ? 'configuré' : 'clé manquante'} · IA : {status.data.aiEnabled ? 'activée' : 'désactivée'}</p><p>Exécutions registre : {status.data.registryCallsToday} · Erreurs : {status.data.registryFailuresToday} · Recherches Brave enregistrées : {status.data.searchQueriesRecordedToday} · Enrichissements en attente : {status.data.pendingEnrichments}</p><p><Link className="underline" to="/settings/ai">Configuration IA</Link> · <Link className="underline" to="/settings/brevo">Configuration email</Link></p></CardContent></Card>}
-    {error && <p role="alert" className="text-destructive">Impossible de terminer la demande : {error.message}</p>}
+    {error && <p role="alert" className="text-destructive">Impossible de terminer la demande : {error.message}{isAxiosError(error) && error.config?.url && <> — {error.config.method?.toUpperCase()} {error.config.url}</>}</p>}
     <Card><CardHeader><CardTitle>Nouvelle campagne France</CardTitle></CardHeader><CardContent>
       <form onSubmit={e => { e.preventDefault(); create.mutate() }} className="grid gap-4 md:grid-cols-3">
         <label>Nom<Input required minLength={3} maxLength={200} value={name} onChange={e => setName(e.target.value)} /></label>

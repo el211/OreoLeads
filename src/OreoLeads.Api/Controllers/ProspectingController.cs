@@ -104,14 +104,14 @@ public class ProspectingController(ApplicationDbContext db, ICurrentUserService 
         return Created($"/api/prospecting/campaigns/{campaign.Id}", campaign);
     }
 
-    [HttpPost("campaigns/{id:guid}/{action}")]
-    public async Task<IActionResult> Transition(Guid id, string action, CancellationToken ct)
+    [HttpPost("campaigns/{id:guid}/{operation}")]
+    public async Task<IActionResult> Transition(Guid id, string operation, CancellationToken ct)
     {
         if (user.OrganizationId is not { } org) return Forbid();
         var campaign = await db.ProspectingCampaigns.SingleOrDefaultAsync(c => c.Id == id && c.OrganizationId == org, ct);
         if (campaign == null) return NotFound();
         if (campaign.Status == "Cancelled") return Conflict("Cancelled campaigns cannot resume.");
-        var state = action switch { "start" or "resume" => "Active", "pause" => "Paused", "cancel" => "Cancelled", _ => null };
+        var state = operation switch { "start" or "resume" => "Active", "pause" => "Paused", "cancel" => "Cancelled", _ => null };
         if (state == null) return BadRequest("Use start, pause, resume or cancel.");
         campaign.Status = state;
         campaign.NextRunAt = DateTime.UtcNow;
