@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { isAxiosError } from 'axios'
 import { useParams, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -191,13 +192,17 @@ function AnalysisPanel({ a }: { a: WebsiteAnalysisDto; industry?: string }) {
 export function LeadAnalysisPage() {
   const { id } = useParams<{ id: string }>()
   const { data: lead } = useLead(id!)
-  const { data: analysis, isLoading } = useLeadAnalysis(id!)
+  const { data: analysis, isLoading, error: loadError } = useLeadAnalysis(id!)
   const { data: history = [] } = useLeadAnalysisHistory(id!)
   const runAnalysis = useRunAnalysis(id!)
   const recalculate = useRecalculateAnalysis(id!)
   const [showHistory, setShowHistory] = useState(false)
 
   const isRunning = runAnalysis.isPending
+  const error = runAnalysis.error || recalculate.error || loadError
+  const errorMessage = isAxiosError(error) && typeof error.response?.data?.message === 'string'
+    ? error.response.data.message
+    : error?.message
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -244,6 +249,11 @@ export function LeadAnalysisPage() {
       </div>
 
       {/* No website */}
+      {error && (
+        <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          Impossible de terminer l’analyse : {errorMessage || 'Veuillez réessayer.'}
+        </div>
+      )}
       {lead && !lead.website && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
@@ -276,7 +286,7 @@ export function LeadAnalysisPage() {
       )}
 
       {/* No analysis yet */}
-      {!isLoading && !isRunning && !analysis && lead?.website && (
+      {!isLoading && !isRunning && !loadError && !analysis && lead?.website && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Globe className="h-8 w-8 mx-auto mb-3 opacity-30" />

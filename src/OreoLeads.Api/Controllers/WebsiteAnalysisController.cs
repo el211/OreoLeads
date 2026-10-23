@@ -77,6 +77,7 @@ public class WebsiteAnalysisController : ControllerBase
             return BadRequest(new { message = "Ce prospect n'a pas de site web renseigné." });
 
         var analysis = await _analyzer.AnalyzeAsync(leadId, lead.Website, ct);
+        analysis.OrganizationId = lead.OrganizationId;
 
         _context.WebsiteAnalyses.Add(analysis);
         await _context.SaveChangesAsync(ct);
