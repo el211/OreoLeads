@@ -127,6 +127,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWebsiteDiscoveryService, WebsiteDiscoveryService>();
         services.AddScoped<IEmailDiscoveryService, EmailDiscoveryService>();
         services.AddScoped<IContactDiscoveryService, ContactDiscoveryService>();
+        services.AddScoped<LinkedInDiscoveryService>();
         services.AddScoped<ICompanyEnrichmentService, CompanyEnrichmentService>();
         services.AddScoped<IEnrichmentQueueService, EnrichmentQueueService>();
         services.AddScoped<IEnrichmentService, EnrichmentService>();

@@ -14,6 +14,7 @@ public class ProspectingRoutingTests
     [InlineData("GET", "campaigns/11111111-1111-1111-1111-111111111111", "Detail")]
     [InlineData("POST", "campaigns/11111111-1111-1111-1111-111111111111/resume", "Transition")]
     [InlineData("POST", "campaigns/11111111-1111-1111-1111-111111111111/start", "Transition")]
+    [InlineData("POST", "campaigns/11111111-1111-1111-1111-111111111111/discover", "Transition")]
     [InlineData("POST", "campaigns/11111111-1111-1111-1111-111111111111/pause", "Transition")]
     [InlineData("POST", "campaigns/11111111-1111-1111-1111-111111111111/cancel", "Transition")]
     public async Task PublicCampaignUrls_ReachTheExpectedAction(string method, string path, string action)

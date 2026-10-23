@@ -80,7 +80,13 @@ public class ProspectingController(ApplicationDbContext db, ICurrentUserService 
     public async Task<IActionResult> List(CancellationToken ct)
     {
         if (user.OrganizationId is not { } org) return Forbid();
-        return Ok(await db.ProspectingCampaigns.Where(c => c.OrganizationId == org).OrderByDescending(c => c.CreatedAt).Take(200).ToListAsync(ct));
+        return Ok(await db.ProspectingCampaigns.Where(c => c.OrganizationId == org).OrderByDescending(c => c.CreatedAt).Take(200)
+            .Select(c => new
+            {
+                c.Id, c.Name, c.Status, c.DailyLimit, c.DiscoveredToday, c.PagesToday, c.NextPage,
+                c.NextRunAt, c.LastError, c.NextDiscoveryAt, c.DiscoveryIntervalMinutes, c.MaxPendingEnrichments,
+                pendingEnrichments = db.CampaignProspects.Count(p => p.CampaignId == c.Id && p.OrganizationId == org && p.State == "Enriching")
+            }).ToListAsync(ct));
     }
 
     [HttpPost("campaigns")]
@@ -111,10 +117,11 @@ public class ProspectingController(ApplicationDbContext db, ICurrentUserService 
         var campaign = await db.ProspectingCampaigns.SingleOrDefaultAsync(c => c.Id == id && c.OrganizationId == org, ct);
         if (campaign == null) return NotFound();
         if (campaign.Status == "Cancelled") return Conflict("Cancelled campaigns cannot resume.");
-        var state = operation switch { "start" or "resume" => "Active", "pause" => "Paused", "cancel" => "Cancelled", _ => null };
-        if (state == null) return BadRequest("Use start, pause, resume or cancel.");
+        var state = operation switch { "start" or "resume" or "discover" => "Active", "pause" => "Paused", "cancel" => "Cancelled", _ => null };
+        if (state == null) return BadRequest("Use start, resume, discover, pause or cancel.");
         campaign.Status = state;
         campaign.NextRunAt = DateTime.UtcNow;
+        if (operation == "discover") campaign.NextDiscoveryAt = DateTime.UtcNow;
         campaign.SetUpdatedAt();
         db.CampaignExecutions.Add(new() { CampaignId = id, OrganizationId = org, Outcome = state });
         await db.SaveChangesAsync(ct);

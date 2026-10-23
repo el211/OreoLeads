@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-type Campaign = { id: string; name: string; status: string; dailyLimit: number; discoveredToday: number; pagesToday: number; nextPage: number; nextRunAt: string; lastError?: string }
+type Campaign = { id: string; name: string; status: string; dailyLimit: number; discoveredToday: number; pagesToday: number; nextPage: number; nextRunAt: string; nextDiscoveryAt: string; discoveryIntervalMinutes: number; maxPendingEnrichments: number; pendingEnrichments: number; lastError?: string }
 type Evidence = { dimension: string; points: number; observation: string; sourceUrl?: string; observedAt: string; confidence: number }
 type Prospect = { id: string; leadId: string; companyName: string; state: string; score: number; evidenceJson: string; recommendationJson?: string; aiError?: string; aiAttempts: number }
 type Detail = { prospects: Prospect[]; history: { id: string; createdAt: string; outcome: string; discovered: number; duplicates: number; error?: string }[] }
@@ -57,7 +57,10 @@ export function ProspectingPage() {
     <div className="grid gap-4 md:grid-cols-2">{campaigns.data?.map(c => <Card key={c.id}><CardHeader><CardTitle><button onClick={() => setSelected(c.id)} className="text-left underline">{c.name}</button></CardTitle></CardHeader><CardContent className="space-y-3">
       <p>{c.status} · {c.discoveredToday}/{c.dailyLimit} découvertes aujourd’hui · {c.pagesToday} appels registre</p>
       <progress aria-label="Découvertes aujourd’hui" className="w-full" value={c.discoveredToday} max={c.dailyLimit} />
-      <p className="text-sm text-muted-foreground">Page suivante : {c.nextPage} · Exécution : {new Date(c.nextRunAt).toLocaleString()}</p>
+      <p className="text-sm text-muted-foreground">Page suivante : {c.nextPage} · Vérification du traitement : {new Date(c.nextRunAt).toLocaleString()}</p>
+      <p className="text-sm">Prochaine recherche au plus tôt : {new Date(c.nextDiscoveryAt).toLocaleString()} · Intervalle : {c.discoveryIntervalMinutes} min · En attente d’enrichissement : {c.pendingEnrichments}/{c.maxPendingEnrichments}</p>
+      {c.status === 'Active' && <p className="text-sm">{c.pendingEnrichments >= c.maxPendingEnrichments ? 'La recherche attend que les enrichissements en cours se terminent.' : c.discoveredToday >= c.dailyLimit ? 'Plafond quotidien atteint.' : new Date(c.nextDiscoveryAt).getTime() > Date.now() ? 'La campagne attend son prochain créneau de recherche.' : 'La recherche reprendra au prochain passage du traitement, dans les limites quotidiennes.'}</p>}
+      {c.status === 'Active' && <Button variant="outline" disabled={transition.isPending || c.pendingEnrichments >= c.maxPendingEnrichments || c.discoveredToday >= c.dailyLimit} onClick={() => transition.mutate({ id: c.id, action: 'discover' })}>Rechercher maintenant</Button>}
       {c.lastError && <p className="text-destructive">{c.lastError}</p>}
       {c.status !== 'Cancelled' && <div className="flex gap-2"><Button disabled={transition.isPending} onClick={() => transition.mutate({ id: c.id, action: c.status === 'Active' ? 'pause' : 'resume' })}>{c.status === 'Active' ? 'Pause' : 'Démarrer / reprendre'}</Button><Button variant="outline" disabled={transition.isPending} onClick={() => transition.mutate({ id: c.id, action: 'cancel' })}>Annuler</Button></div>}
     </CardContent></Card>)}</div>

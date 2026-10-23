@@ -33,6 +33,7 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
     private readonly EnrichmentSettings _settings;
     private readonly ILogger<CompanyEnrichmentService> _logger;
     private readonly IContactDiscoveryService? _contacts;
+    private readonly LinkedInDiscoveryService? _linkedIn;
 
     public CompanyEnrichmentService(
         ApplicationDbContext db,
@@ -41,7 +42,8 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
         IWebsiteAnalyzerService analyzer,
         IOptions<EnrichmentSettings> settings,
         ILogger<CompanyEnrichmentService> logger,
-        IContactDiscoveryService? contacts = null)
+        IContactDiscoveryService? contacts = null,
+        LinkedInDiscoveryService? linkedIn = null)
     {
         _db               = db;
         _websiteDiscovery = websiteDiscovery;
@@ -50,6 +52,7 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
         _settings         = settings.Value;
         _logger           = logger;
         _contacts = contacts;
+        _linkedIn = linkedIn;
     }
 
     public async Task<EnrichmentStatus> RunAsync(Guid enrichmentId, CancellationToken ct = default)
@@ -170,6 +173,12 @@ public sealed class CompanyEnrichmentService : ICompanyEnrichmentService
         if (_contacts != null && !string.IsNullOrWhiteSpace(websiteToUse))
             job.InspectionJson = await _contacts.InspectAsync(lead, ct,
                 string.IsNullOrWhiteSpace(lead.Website) ? websiteToUse : null);
+        if (_linkedIn != null)
+        {
+            var research = await _linkedIn.DiscoverAsync(lead, ct);
+            job.SearchQueriesUsed += research.QueriesUsed;
+            job.InspectionJson = LinkedInDiscoveryService.Attach(job.InspectionJson, research);
+        }
         await _db.SaveChangesAsync(ct);
 
         return needsReview ? EnrichmentStatus.NeedsReview : EnrichmentStatus.Completed;

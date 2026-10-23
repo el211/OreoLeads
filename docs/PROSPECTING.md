@@ -115,6 +115,12 @@ Outreach tests cover content/recipient changes, expired reviews, missing human a
 
 ## Remaining scope / operational limits
 
+### Public LinkedIn discovery and campaign pacing
+
+Each enrichment also searches the public Brave index for LinkedIn company pages and professional profiles, including a query for leadership roles. This uses up to three additional Brave searches per lead, including leads without a website. Results are stored in the enrichment inspection JSON with their source URL, indexed title/excerpt, observation time and search status. They appear in the lead's LinkedIn section and are candidate matches, not verified employment or identity. Public contact details in excerpts are displayed for review and never automatically assigned to the lead. Missing Brave configuration and partial/provider failures are displayed explicitly. No LinkedIn login, private profile retrieval, messaging, or approved partner API is implemented.
+
+Campaign cards display the next discovery time separately from the worker tick and show the number of prospects waiting for enrichment. `POST /api/prospecting/campaigns/{id}/discover` schedules discovery now without resetting daily counters, limits, or the pending-enrichment cap. Cancelled campaigns cannot be resumed. Daily limits are ceilings, not guaranteed counts; existing companies and client-side filters can produce zero new leads on a page.
+
 - This is not the full eight-phase platform. Discovery is registry-led; Brave enriches those businesses. General search-led company discovery, Google-compatible search and authorized paid directory integrations are not implemented.
 - Monetary budget accounting, hard per-provider spend reservations, per-campaign worker concurrency, cron/time-zone schedules and a persistent per-request billing ledger are not implemented. Recorded search counts are not billing reconciliation. Failed/rolled-back external calls can still consume provider quota. Discovery intervals and pending-enrichment limits are configurable.
 - Numeric qualification is deterministic weighted evidence. AI selects a service from supported observations; it does not invent the numeric score. Service relevance/opportunity value are not revenue predictions. Automatic recommendations stop after three failures; there is no operator retry-reset UI yet.
